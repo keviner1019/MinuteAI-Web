@@ -149,7 +149,7 @@ export default function TestPusherPage() {
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>Now using PRIVATE channels (client events are supported)</li>
               <li>Added authentication endpoint at /api/pusher/auth</li>
-              <li>No longer need to enable "client events" in Pusher dashboard</li>
+              <li>No longer need to enable &quot;client events&quot; in Pusher dashboard</li>
               <li>Private channels support client events by default!</li>
             </ul>
           </div>

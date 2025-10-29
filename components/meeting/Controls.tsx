@@ -30,6 +30,7 @@ export function Controls({
     if (roomId) {
       fetchMeetingCode();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   const fetchMeetingCode = async () => {
