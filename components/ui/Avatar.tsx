@@ -52,6 +52,7 @@ export function Avatar({
         }`}
       >
         {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt={alt} className="w-full h-full object-cover" />
         ) : (
           <User className={`${iconSizes[size]} text-blue-600`} />

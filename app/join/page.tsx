@@ -137,7 +137,7 @@ export default function JoinMeetingPage() {
           <div className="text-center space-y-3">
             <p className="text-sm text-gray-600 dark:text-gray-400">Have a meeting link instead?</p>
             <Button
-              variant="outline"
+              variant="secondary"
               className="w-full"
               onClick={() => {
                 const link = prompt('Paste the meeting link here:');

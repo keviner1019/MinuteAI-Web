@@ -138,10 +138,10 @@ export default function TestPusherPage() {
         <div className="mt-6 bg-green-900/20 border border-green-600 rounded-lg p-4">
           <h3 className="text-green-400 font-semibold mb-2">✅ How It Works Now</h3>
           <ol className="list-decimal list-inside space-y-2 text-sm">
-            <li>First, click "Test Channel Subscription"</li>
-            <li>You should see "✅ Subscribed to private-test-channel"</li>
-            <li>Then click "Test Client Events"</li>
-            <li>You should see "✅ Client event sent" AND "📥 Received client event"</li>
+            <li>First, click &quot;Test Channel Subscription&quot;</li>
+            <li>You should see &quot;✅ Subscribed to private-test-channel&quot;</li>
+            <li>Then click &quot;Test Client Events&quot;</li>
+            <li>You should see &quot;✅ Client event sent&quot; AND &quot;📥 Received client event&quot;</li>
             <li>If working here, meetings will work too!</li>
           </ol>
           <div className="mt-4 bg-gray-800 p-3 rounded">

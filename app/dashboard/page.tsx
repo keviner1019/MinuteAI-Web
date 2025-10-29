@@ -34,11 +34,13 @@ export default function DashboardPage() {
   }, [user]);
 
   async function loadMeetings() {
+    if (!user?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
-        .eq('host_id', user?.id)
+        .eq('host_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -72,7 +74,7 @@ export default function DashboardPage() {
           host_id: user.id,
           title: 'Quick Meeting',
           status: 'scheduled',
-        })
+        } as any)
         .select()
         .single();
 

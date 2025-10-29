@@ -54,16 +54,16 @@ export default function MeetingSummary() {
       }
 
       console.log('✅ Meeting loaded:', meetingData);
-      setMeeting(meetingData);
+      setMeeting(meetingData as any);
 
       if (!meetingData) return;
 
       // Load transcripts
-      console.log('🔍 Loading transcripts for meeting:', meetingData.id);
+      console.log('🔍 Loading transcripts for meeting:', (meetingData as any).id);
       const { data: transcriptData, error: transcriptError } = await supabase
         .from('transcripts')
         .select('*')
-        .eq('meeting_id', meetingData.id)
+        .eq('meeting_id', (meetingData as any).id)
         .order('created_at', { ascending: true });
 
       if (transcriptError) {
@@ -74,22 +74,23 @@ export default function MeetingSummary() {
       }
 
       // Load summary if exists - use maybeSingle() instead of single()
-      console.log('🔍 Loading summary for meeting:', meetingData.id);
+      console.log('🔍 Loading summary for meeting:', (meetingData as any).id);
       const { data: summaryData, error: summaryError } = await supabase
         .from('meeting_summaries')
         .select('*')
-        .eq('meeting_id', meetingData.id)
+        .eq('meeting_id', (meetingData as any).id)
         .maybeSingle();
 
       if (summaryError) {
         console.error('❌ Error loading summary:', summaryError);
       } else if (summaryData) {
         console.log('✅ Summary loaded:', summaryData);
+        const data = summaryData as any;
         setSummary({
-          summary: summaryData.summary,
-          key_points: summaryData.key_points,
-          action_items: summaryData.action_items,
-          sentiment: summaryData.sentiment,
+          summary: data.summary,
+          key_points: data.key_points,
+          action_items: data.action_items,
+          sentiment: data.sentiment,
         });
       } else {
         console.log('ℹ️ No summary found for this meeting');

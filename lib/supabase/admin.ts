@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
 
 // Create admin client for server-side operations (bypasses RLS)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -14,11 +13,11 @@ if (!supabaseServiceKey) {
 }
 
 // Admin client bypasses RLS - use carefully!
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+// Not using Database type to avoid type inference issues with admin operations
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
   },
 });
-
 

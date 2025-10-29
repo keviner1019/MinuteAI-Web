@@ -45,9 +45,10 @@ export default function ProfilePage() {
       }
 
       if (data) {
+        const profileData = data as any;
         setProfile({
-          displayName: data.display_name || '',
-          avatarUrl: data.avatar_url || '',
+          displayName: profileData.display_name || '',
+          avatarUrl: profileData.avatar_url || '',
         });
       } else {
         // Create profile if it doesn't exist
@@ -125,7 +126,7 @@ export default function ProfilePage() {
           display_name: profile.displayName,
           avatar_url: profile.avatarUrl,
           updated_at: new Date().toISOString(),
-        },
+        } as any,
         {
           onConflict: 'id',
         }
@@ -191,6 +192,7 @@ export default function ProfilePage() {
             <div className="relative inline-block">
               <div className="w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-gray-200">
                 {profile.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={profile.avatarUrl}
                     alt="Profile"

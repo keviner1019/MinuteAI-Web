@@ -83,7 +83,6 @@ ${transcript}
     console.log('Key topics count:', analysis.keyTopics?.length || 0);
 
     // Update note with AI analysis using admin client (bypasses RLS)
-    // @ts-ignore - Admin client bypasses RLS, types are correct at runtime
     const { data, error: updateError } = await supabaseAdmin
       .from('notes')
       .update({

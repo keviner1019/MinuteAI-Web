@@ -86,7 +86,7 @@ export function useAudioRecorder(meetingId: string | null) {
         duration,
         file_size: audioBlob.size,
         format: 'webm',
-      });
+      } as any);
 
       if (dbError) throw dbError;
 

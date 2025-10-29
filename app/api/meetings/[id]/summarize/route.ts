@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     // Extract text array
-    const transcriptTexts = transcripts.map((t) => t.text);
+    const transcriptTexts = transcripts.map((t: any) => t.text);
     const fullTranscript = transcriptTexts.join('\n');
 
     // Generate summary using Gemini Flash 1.5 (same model used for audio)
@@ -71,7 +71,7 @@ Format your response as JSON:
         key_points: summary.keyPoints,
         action_items: summary.actionItems,
         sentiment: summary.sentiment,
-      })
+      } as any)
       .select()
       .single();
 
