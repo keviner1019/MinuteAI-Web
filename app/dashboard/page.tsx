@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
   async function loadMeetings() {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('meetings')

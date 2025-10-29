@@ -52,11 +52,7 @@ export async function getNotes(userId: string): Promise<Note[]> {
  * Get a single note by ID
  */
 export async function getNote(noteId: string): Promise<Note | null> {
-  const { data, error } = await supabase
-    .from('notes')
-    .select('*')
-    .eq('id', noteId)
-    .single();
+  const { data, error } = await supabase.from('notes').select('*').eq('id', noteId).single();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -72,7 +68,9 @@ export async function getNote(noteId: string): Promise<Note | null> {
 /**
  * Create a new note
  */
-export async function createNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
+export async function createNote(
+  note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<Note> {
   const insertData: NoteInsert = {
     user_id: note.userId,
     title: note.title,
@@ -135,10 +133,7 @@ export async function updateNote(noteId: string, updates: Partial<Note>): Promis
  * Delete a note
  */
 export async function deleteNote(noteId: string): Promise<void> {
-  const { error } = await supabase
-    .from('notes')
-    .delete()
-    .eq('id', noteId);
+  const { error } = await supabase.from('notes').delete().eq('id', noteId);
 
   if (error) {
     console.error('Error deleting note:', error);
@@ -149,10 +144,7 @@ export async function deleteNote(noteId: string): Promise<void> {
 /**
  * Subscribe to notes changes in real-time
  */
-export function subscribeToNotes(
-  userId: string,
-  callback: (notes: Note[]) => void
-) {
+export function subscribeToNotes(userId: string, callback: (notes: Note[]) => void) {
   // Initial fetch
   getNotes(userId).then(callback).catch(console.error);
 
@@ -179,4 +171,3 @@ export function subscribeToNotes(
     subscription.unsubscribe();
   };
 }
-
