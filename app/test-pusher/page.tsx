@@ -141,10 +141,7 @@ export default function TestPusherPage() {
             <li>First, click &quot;Test Channel Subscription&quot;</li>
             <li>You should see &quot;✅ Subscribed to private-test-channel&quot;</li>
             <li>Then click &quot;Test Client Events&quot;</li>
-            <li>
-              You should see &quot;✅ Client event sent&quot; AND &quot;📥 Received client
-              event&quot;
-            </li>
+            <li>You should see &quot;✅ Client event sent&quot; AND &quot;📥 Received client event&quot;</li>
             <li>If working here, meetings will work too!</li>
           </ol>
           <div className="mt-4 bg-gray-800 p-3 rounded">
