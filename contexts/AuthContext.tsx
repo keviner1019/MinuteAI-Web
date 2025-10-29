@@ -73,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/dashboard`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account',
+        },
       },
     });
 

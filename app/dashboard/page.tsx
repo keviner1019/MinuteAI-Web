@@ -203,6 +203,10 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <Button variant="secondary" onClick={() => router.push('/join')}>
+                <Plus className="h-4 w-4" />
+                Join Meeting
+              </Button>
               <Button variant="secondary" onClick={() => setUploadModalOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Upload

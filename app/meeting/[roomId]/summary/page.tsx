@@ -144,40 +144,40 @@ export default function MeetingSummary() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
+      <div className="flex items-center justify-center h-screen bg-gray-50">
         <Loader2 className="animate-spin text-blue-500" size={48} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 mb-4 transition"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4 transition"
           >
             <ArrowLeft size={20} />
             Back to Dashboard
           </Link>
 
-          <h1 className="text-3xl font-bold text-white mb-2">Meeting Summary</h1>
-          <p className="text-gray-400">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Meeting Summary</h1>
+          <p className="text-gray-600">
             {meeting?.title} • {new Date(meeting?.created_at).toLocaleDateString()}
           </p>
         </div>
 
         {/* Summary Section */}
-        <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-700">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-white">AI Summary</h2>
+            <h2 className="text-xl font-semibold text-gray-900">AI Summary</h2>
             {!summary && (
               <button
                 onClick={generateSummary}
                 disabled={generating || transcripts.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center gap-2"
               >
                 {generating && <Loader2 className="animate-spin" size={16} />}
                 {generating ? 'Generating...' : 'Generate Summary'}
@@ -189,20 +189,20 @@ export default function MeetingSummary() {
             <div className="space-y-6">
               {/* Main Summary */}
               <div>
-                <h3 className="font-semibold text-gray-300 mb-2">Overview</h3>
-                <p className="text-gray-100">{summary.summary}</p>
+                <h3 className="font-semibold text-gray-700 mb-2">Overview</h3>
+                <p className="text-gray-900">{summary.summary}</p>
               </div>
 
               {/* Sentiment */}
               <div>
-                <h3 className="font-semibold text-gray-300 mb-2">Sentiment</h3>
+                <h3 className="font-semibold text-gray-700 mb-2">Sentiment</h3>
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm ${
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                     summary.sentiment === 'positive'
-                      ? 'bg-green-500 bg-opacity-20 text-green-400'
+                      ? 'bg-green-100 text-green-700'
                       : summary.sentiment === 'negative'
-                      ? 'bg-red-500 bg-opacity-20 text-red-400'
-                      : 'bg-gray-500 bg-opacity-20 text-gray-400'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-gray-100 text-gray-700'
                   }`}
                 >
                   {summary.sentiment}
@@ -212,8 +212,8 @@ export default function MeetingSummary() {
               {/* Key Points */}
               {summary.key_points && summary.key_points.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-gray-300 mb-2">Key Points</h3>
-                  <ul className="list-disc list-inside space-y-1 text-gray-100">
+                  <h3 className="font-semibold text-gray-700 mb-2">Key Points</h3>
+                  <ul className="list-disc list-inside space-y-1 text-gray-900">
                     {summary.key_points.map((point, idx) => (
                       <li key={idx}>{point}</li>
                     ))}
@@ -224,8 +224,8 @@ export default function MeetingSummary() {
               {/* Action Items */}
               {summary.action_items && summary.action_items.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-gray-300 mb-2">Action Items</h3>
-                  <ul className="list-disc list-inside space-y-1 text-gray-100">
+                  <h3 className="font-semibold text-gray-700 mb-2">Action Items</h3>
+                  <ul className="list-disc list-inside space-y-1 text-gray-900">
                     {summary.action_items.map((item, idx) => (
                       <li key={idx}>{item}</li>
                     ))}
@@ -243,13 +243,13 @@ export default function MeetingSummary() {
         </div>
 
         {/* Transcript Section */}
-        <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+        <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-white">Full Transcript</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Full Transcript</h2>
             {transcripts.length > 0 && (
               <button
                 onClick={downloadTranscript}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
               >
                 <Download size={16} />
                 Download
@@ -276,16 +276,16 @@ export default function MeetingSummary() {
                   <div key={idx} className="flex gap-3">
                     <div className="flex-shrink-0">
                       <span
-                        className={`inline-block px-2 py-1 rounded text-xs ${
+                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                           speakerNumber === 1
-                            ? 'bg-blue-500 bg-opacity-20 text-blue-400'
-                            : 'bg-green-500 bg-opacity-20 text-green-400'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-green-100 text-green-700'
                         }`}
                       >
                         {speakerNumber === 1 ? 'Speaker 1' : 'Speaker 2'}
                       </span>
                     </div>
-                    <p className="text-gray-100 flex-1">{transcript.text}</p>
+                    <p className="text-gray-900 flex-1">{transcript.text}</p>
                     <span className="text-gray-500 text-xs">
                       {new Date(transcript.created_at).toLocaleTimeString()}
                     </span>

@@ -75,10 +75,11 @@ export default function MeetingRoom() {
   // Auto-start transcription when mixed stream is ready
   useEffect(() => {
     if (mixedStream && meetingId && !isTranscribing) {
-      console.log('🎙️ Auto-starting transcription...');
+      console.log('🎙️ Auto-starting transcription with mixed stream...');
+      console.log('Mixed stream tracks:', mixedStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
       startTranscription();
     }
-  }, [mixedStream, meetingId]);
+  }, [mixedStream, meetingId, isTranscribing, startTranscription]);
 
   // Show notification when participant joins with their name
   useEffect(() => {

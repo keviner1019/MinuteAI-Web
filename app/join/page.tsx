@@ -66,27 +66,27 @@ export default function JoinMeetingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
             <Video className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Join a Meeting</h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Join a Meeting</h1>
+          <p className="text-gray-600">
             Enter the meeting code provided by the host
           </p>
         </div>
 
         {/* Join Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8">
+        <div className="bg-white rounded-lg shadow-xl p-8">
           <form onSubmit={handleJoinByCode} className="space-y-6">
             {/* Meeting Code Input */}
             <div>
               <label
                 htmlFor="meetingCode"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 <Hash className="h-4 w-4 inline mr-1" />
                 Meeting Code
@@ -98,14 +98,14 @@ export default function JoinMeetingPage() {
                 onChange={(e) => setMeetingCode(e.target.value.toUpperCase())}
                 placeholder="ABC123"
                 maxLength={6}
-                className="w-full px-4 py-3 text-center text-2xl font-mono tracking-wider border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-4 py-3 text-center text-2xl font-mono tracking-wider border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-gray-900"
                 disabled={loading}
               />
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
@@ -124,10 +124,10 @@ export default function JoinMeetingPage() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+              <span className="px-2 bg-white text-gray-500">
                 or
               </span>
             </div>
@@ -135,7 +135,7 @@ export default function JoinMeetingPage() {
 
           {/* Alternative Options */}
           <div className="text-center space-y-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Have a meeting link instead?</p>
+            <p className="text-sm text-gray-600">Have a meeting link instead?</p>
             <Button
               variant="secondary"
               className="w-full"
@@ -163,11 +163,11 @@ export default function JoinMeetingPage() {
 
         {/* Footer */}
         <div className="text-center mt-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600">
             Don&apos;t have a meeting code?{' '}
             <button
               onClick={() => router.push('/dashboard')}
-              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              className="text-blue-600 hover:underline font-medium"
             >
               Go to Dashboard
             </button>
