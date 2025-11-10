@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       cached: true,
-      translatedSegments: data.translated_segments,
-      cachedAt: data.created_at,
+      translatedSegments: (data as any).translated_segments,
+      cachedAt: (data as any).created_at,
     });
   } catch (error: any) {
     console.error('Cache retrieval error:', error);
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           target_language: targetLanguage,
           translated_segments: translatedSegments,
           updated_at: new Date().toISOString(),
-        },
+        } as any,
         {
           onConflict: 'note_id,target_language',
         }
