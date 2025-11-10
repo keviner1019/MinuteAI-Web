@@ -60,7 +60,7 @@ export default function ActionItemCard({
 
   const handleCancel = () => {
     setEditText(item.text);
-    setEditPriority(item.priority);
+    setEditPriority(item.priority || 'medium');
     setEditDeadline(item.deadline || '');
     setIsEditing(false);
   };
