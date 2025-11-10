@@ -39,10 +39,12 @@ export default function ActionItemCard({
 }: ActionItemCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(item.text);
-  const [editPriority, setEditPriority] = useState(item.priority);
+  const [editPriority, setEditPriority] = useState(item.priority || 'medium'); // Default to medium if missing
   const [editDeadline, setEditDeadline] = useState(item.deadline || '');
 
-  const config = priorityConfig[item.priority];
+  // Safely access priority with fallback to 'medium'
+  const priority = item.priority || 'medium';
+  const config = priorityConfig[priority];
   const overdue = item.deadline && !item.completed && isOverdue(item.deadline);
 
   const handleSave = () => {

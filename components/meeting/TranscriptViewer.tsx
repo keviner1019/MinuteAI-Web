@@ -77,11 +77,14 @@ export default function TranscriptViewer({
             }),
           });
 
-          if (!response.ok) {
-            return segment; // Return original on error
+          const data = await response.json();
+
+          // If translation failed or not successful, return original segment
+          if (!data.success || !data.translatedText) {
+            console.warn('Translation failed for segment, using original:', data.error);
+            return segment;
           }
 
-          const data = await response.json();
           return {
             ...segment,
             text: data.translatedText,

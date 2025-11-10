@@ -54,17 +54,21 @@ export default function TranscriptTranslator({ text, onTranslate }: TranscriptTr
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Translation failed');
+      const data = await response.json();
+
+      // Check if translation was successful
+      if (!data.success || !data.translatedText) {
+        console.warn('Translation failed:', data.error);
+        alert(data.error || 'Translation service temporarily unavailable. Please try again later.');
+        return;
       }
 
-      const data = await response.json();
       // Pass language code instead of language name to parent
       onTranslate(data.translatedText, languageCode);
       setSelectedLanguage(languageName);
     } catch (error) {
       console.error('Translation error:', error);
-      alert('Translation failed. Please try again.');
+      alert('Translation failed. The service might be temporarily unavailable. Please try again later.');
     } finally {
       setTranslating(false);
     }

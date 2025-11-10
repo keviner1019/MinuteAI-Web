@@ -84,7 +84,7 @@ export interface Analysis {
 export interface ActionItem {
   id: string;
   text: string;
-  priority: 'high' | 'medium' | 'low';
+  priority?: 'high' | 'medium' | 'low'; // Optional, defaults to 'medium'
   completed: boolean;
   deadline?: string; // ISO date string
   createdAt?: string;
