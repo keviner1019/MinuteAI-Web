@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { TranscriptSegment } from '@/types';
 import { useTranscriptSync } from '@/hooks/useTranscriptSync';
 import { useTranscriptSearch } from '@/hooks/useTranscriptSearch';
 import TranscriptSegmentComponent from './TranscriptSegment';
 import TranscriptSearch from './TranscriptSearch';
 import TranscriptExport from './TranscriptExport';
+import AudioPlayer from './AudioPlayer';
+import TranscriptTranslator from './TranscriptTranslator';
 import { FileText, Loader2 } from 'lucide-react';
 
 interface TranscriptViewerProps {
@@ -23,14 +25,21 @@ export default function TranscriptViewer({
   loading = false,
 }: TranscriptViewerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Translation state
+  const [translatedSegments, setTranslatedSegments] = useState<TranscriptSegment[]>([]);
+  const [displayLanguage, setDisplayLanguage] = useState<string>('Original');
 
-  // Transcript sync with audio
+  // Use translated segments if available, otherwise use original
+  const displaySegments = translatedSegments.length > 0 ? translatedSegments : segments;
+
+  // Transcript sync with audio (use displaySegments)
   const { currentSegmentId, seekToTime, isPlaying } = useTranscriptSync({
-    segments,
+    segments: displaySegments,
     audioRef,
   });
 
-  // Search functionality
+  // Search functionality (use displaySegments)
   const {
     searchQuery,
     setSearchQuery,
@@ -40,7 +49,52 @@ export default function TranscriptViewer({
     goToPreviousMatch,
     clearSearch,
     highlightedSegmentId,
-  } = useTranscriptSearch({ segments });
+  } = useTranscriptSearch({ segments: displaySegments });
+
+  // Handle translation
+  const handleTranslate = async (translatedText: string, languageCode: string) => {
+    if (languageCode === 'Original') {
+      setTranslatedSegments([]);
+      setDisplayLanguage('Original');
+      return;
+    }
+
+    // Translate all segments
+    setDisplayLanguage(languageCode);
+    
+    // Extract language code (e.g., "es" from "Spanish (Español)")
+    const langCode = languageCode.toLowerCase().slice(0, 2);
+    
+    const translated = await Promise.all(
+      segments.map(async (segment) => {
+        try {
+          const response = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: segment.text,
+              targetLanguage: langCode,
+            }),
+          });
+
+          if (!response.ok) {
+            return segment; // Return original on error
+          }
+
+          const data = await response.json();
+          return {
+            ...segment,
+            text: data.translatedText,
+          };
+        } catch (error) {
+          console.error('Translation error:', error);
+          return segment; // Return original on error
+        }
+      })
+    );
+
+    setTranslatedSegments(translated);
+  };
 
   // Handle segment click - seek audio to that time
   const handleSegmentClick = (segment: TranscriptSegment) => {
@@ -70,10 +124,16 @@ export default function TranscriptViewer({
 
   return (
     <div className="space-y-4">
-      {/* Hidden audio element */}
-      <audio ref={audioRef} src={audioUrl} preload="metadata" className="hidden" />
+      {/* Audio Player with Controls */}
+      <AudioPlayer
+        audioUrl={audioUrl}
+        audioRef={audioRef}
+        onTimeUpdate={(time) => {
+          // Update handled by useTranscriptSync hook
+        }}
+      />
 
-      {/* Header with Search and Export */}
+      {/* Header with Search, Translate, and Export */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-[300px]">
           <TranscriptSearch
@@ -87,7 +147,17 @@ export default function TranscriptViewer({
           />
         </div>
 
-        <TranscriptExport segments={segments} title={title} />
+        <div className="flex items-center gap-2">
+          <TranscriptTranslator
+            text={segments.map((s) => s.text).join(' ')}
+            onTranslate={handleTranslate}
+          />
+          <TranscriptExport 
+            segments={displaySegments} 
+            title={title}
+            language={displayLanguage}
+          />
+        </div>
       </div>
 
       {/* Transcript Segments */}

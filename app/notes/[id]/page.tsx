@@ -263,7 +263,7 @@ export default function NotePage() {
             <div className="card-lg mb-6">
               <h2 className="text-base font-semibold text-gray-900 mb-4">Interactive Transcript</h2>
               <TranscriptViewer
-                segments={parseTranscriptToSegments(note.transcript)}
+                segments={note.transcriptSegments || parseTranscriptToSegments(note.transcript)}
                 audioUrl={note.storageUrl}
                 title={note.title}
               />

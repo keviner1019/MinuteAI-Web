@@ -9,6 +9,7 @@ import { exportToTXT, exportToSRT, exportToPDF, exportToDOCX } from '@/utils/tra
 interface TranscriptExportProps {
   segments: TranscriptSegment[];
   title: string;
+  language?: string;
 }
 
 type ExportFormat = 'txt' | 'srt' | 'pdf' | 'docx';
@@ -47,9 +48,12 @@ const exportOptions: ExportOption[] = [
   },
 ];
 
-export default function TranscriptExport({ segments, title }: TranscriptExportProps) {
+export default function TranscriptExport({ segments, title, language = 'Original' }: TranscriptExportProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
+
+  // Add language info to title if translated
+  const exportTitle = language !== 'Original' ? `${title} (${language})` : title;
 
   const handleExport = async (format: ExportFormat) => {
     if (segments.length === 0) {
@@ -62,16 +66,16 @@ export default function TranscriptExport({ segments, title }: TranscriptExportPr
     try {
       switch (format) {
         case 'txt':
-          await exportToTXT(segments, title);
+          await exportToTXT(segments, exportTitle);
           break;
         case 'srt':
-          await exportToSRT(segments, title);
+          await exportToSRT(segments, exportTitle);
           break;
         case 'pdf':
-          await exportToPDF(segments, title);
+          await exportToPDF(segments, exportTitle);
           break;
         case 'docx':
-          await exportToDOCX(segments, title);
+          await exportToDOCX(segments, exportTitle);
           break;
       }
 

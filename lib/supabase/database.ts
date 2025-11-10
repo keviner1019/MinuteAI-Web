@@ -22,6 +22,7 @@ function rowToNote(row: NoteRow): Note {
     duration: row.duration || undefined,
     status: row.status,
     transcript: row.transcript || undefined,
+    transcriptSegments: (row.transcript_segments || []) as TranscriptSegment[], // Add segments
     summary: row.summary || undefined,
     actionItems: (row.action_items || []) as ActionItem[],
     keyTopics: row.key_topics || undefined,

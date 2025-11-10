@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Format transcript with speaker labels if available
     let formattedTranscript = transcript.text;
+    let transcriptSegments: any[] = [];
 
     if (transcript.utterances && transcript.utterances.length > 0) {
       // Create formatted transcript with speaker labels
@@ -60,7 +61,36 @@ export async function POST(request: NextRequest) {
         .map((utterance) => `Speaker ${utterance.speaker}: ${utterance.text}`)
         .join('\n\n');
 
+      // Create transcript segments with accurate timestamps from AssemblyAI
+      transcriptSegments = transcript.utterances.map((utterance, index) => ({
+        id: `segment-${index}`,
+        text: utterance.text,
+        start: utterance.start / 1000, // Convert milliseconds to seconds
+        end: utterance.end / 1000, // Convert milliseconds to seconds
+        speaker: `Speaker ${utterance.speaker}`,
+        confidence: utterance.confidence || 0.95,
+      }));
+
       console.log('Formatted transcript with speaker labels');
+      console.log('Created', transcriptSegments.length, 'transcript segments with accurate timestamps');
+    } else if (transcript.words && transcript.words.length > 0) {
+      // Fallback: Use words if utterances not available
+      // Group words into sentences (every 15-20 words or by punctuation)
+      const wordsPerSegment = 15;
+      for (let i = 0; i < transcript.words.length; i += wordsPerSegment) {
+        const segmentWords = transcript.words.slice(i, i + wordsPerSegment);
+        const segmentText = segmentWords.map(w => w.text).join(' ');
+        
+        transcriptSegments.push({
+          id: `segment-${Math.floor(i / wordsPerSegment)}`,
+          text: segmentText,
+          start: segmentWords[0].start / 1000, // First word start time
+          end: segmentWords[segmentWords.length - 1].end / 1000, // Last word end time
+          confidence: segmentWords.reduce((acc, w) => acc + (w.confidence || 0), 0) / segmentWords.length,
+        });
+      }
+      
+      console.log('Created', transcriptSegments.length, 'transcript segments from words');
     }
 
     // Update note with transcript using admin client (bypasses RLS)
@@ -69,6 +99,7 @@ export async function POST(request: NextRequest) {
       .from('notes')
       .update({
         transcript: formattedTranscript, // Use formatted transcript with speaker labels
+        transcript_segments: transcriptSegments, // Save accurate timestamp segments
         duration: Math.round(transcript.audio_duration || 0),
         status: 'processing',
       })

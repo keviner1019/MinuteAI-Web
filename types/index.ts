@@ -29,6 +29,7 @@ export interface Note {
   duration?: number; // in seconds
   status: 'uploading' | 'processing' | 'completed' | 'failed';
   transcript?: string;
+  transcriptSegments?: TranscriptSegment[]; // Add segments with accurate timestamps
   summary?: string;
   actionItems?: ActionItem[];
   keyTopics?: string[];
