@@ -37,6 +37,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ### Tech Stack
 
 #### Core Framework
+
 ```
 ├── Expo SDK 51+ (Latest stable)
 ├── React Native 0.74+
@@ -45,6 +46,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ```
 
 #### State Management
+
 ```
 ├── Zustand (Global state - same as web)
 ├── React Query / TanStack Query (Server state)
@@ -53,6 +55,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ```
 
 #### UI & Styling
+
 ```
 ├── NativeWind (Tailwind CSS for React Native)
 ├── React Native Reanimated 3 (Animations)
@@ -62,6 +65,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ```
 
 #### Backend & APIs
+
 ```
 ├── Axios (HTTP client)
 ├── WebSocket (Real-time features)
@@ -70,6 +74,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ```
 
 #### Audio & Media
+
 ```
 ├── Expo AV (Audio playback)
 ├── Expo Audio (Recording)
@@ -79,6 +84,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ```
 
 #### Real-time Communication
+
 ```
 ├── Daily.co React Native SDK (Video/Audio meetings)
 ├── Pusher (Real-time events)
@@ -86,6 +92,7 @@ This comprehensive development plan outlines the strategy for building a **cross
 ```
 
 #### Developer Tools
+
 ```
 ├── ESLint + Prettier (Code quality)
 ├── Expo DevClient (Custom development builds)
@@ -104,18 +111,18 @@ This comprehensive development plan outlines the strategy for building a **cross
 // theme/colors.ts
 export const colors = {
   primary: {
-    DEFAULT: '#3B82F6',    // Blue-500
-    dark: '#2563EB',       // Blue-600
-    light: '#DBEAFE',      // Blue-100
+    DEFAULT: '#3B82F6', // Blue-500
+    dark: '#2563EB', // Blue-600
+    light: '#DBEAFE', // Blue-100
     extraLight: '#EFF6FF', // Blue-50
   },
   secondary: {
-    DEFAULT: '#8B5CF6',    // Violet-500
-    light: '#EDE9FE',      // Violet-100
+    DEFAULT: '#8B5CF6', // Violet-500
+    light: '#EDE9FE', // Violet-100
   },
-  success: '#10B981',      // Green-500
-  warning: '#F59E0B',      // Amber-500
-  error: '#EF4444',        // Red-500
+  success: '#10B981', // Green-500
+  warning: '#F59E0B', // Amber-500
+  error: '#EF4444', // Red-500
   gray: {
     50: '#F9FAFB',
     100: '#F3F4F6',
@@ -141,12 +148,12 @@ export const typography = {
     bold: 'Inter_700Bold',
   },
   fontSize: {
-    xs: 12,      // Small text, captions
-    sm: 14,      // Body text
-    base: 16,    // Subsections
-    lg: 20,      // Card titles
-    xl: 24,      // Section titles
-    '2xl': 32,   // Page titles
+    xs: 12, // Small text, captions
+    sm: 14, // Body text
+    base: 16, // Subsections
+    lg: 20, // Card titles
+    xl: 24, // Section titles
+    '2xl': 32, // Page titles
   },
   lineHeight: {
     xs: 16,
@@ -335,6 +342,7 @@ minuteai-mobile/
 ### Phase 1: Foundation (Week 1-2)
 
 #### 1.1 Project Setup
+
 - [x] Initialize Expo project with TypeScript
 - [x] Install and configure dependencies
 - [x] Set up NativeWind (Tailwind CSS)
@@ -355,6 +363,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ```
 
 #### 1.2 Design System Setup
+
 - [ ] Create theme configuration files
 - [ ] Set up color constants (matching web)
 - [ ] Configure Inter font family
@@ -363,6 +372,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Create component documentation
 
 #### 1.3 Navigation Setup
+
 - [ ] Configure Expo Router
 - [ ] Set up authentication flow
 - [ ] Create tab navigator
@@ -373,6 +383,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 2: Authentication (Week 2-3)
 
 #### 2.1 UI Components
+
 - [ ] Login screen (matching web design)
 - [ ] Signup screen
 - [ ] Password reset screen
@@ -381,6 +392,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Loading states
 
 #### 2.2 Backend Integration
+
 - [ ] Supabase auth setup
 - [ ] Email/password authentication
 - [ ] OAuth integration (Google, Apple)
@@ -389,6 +401,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Logout functionality
 
 #### 2.3 Auth State Management
+
 - [ ] Create auth Zustand store
 - [ ] Persist auth state
 - [ ] Protected route wrapper
@@ -398,6 +411,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 3: Core Features - Notes (Week 3-5)
 
 #### 3.1 Dashboard Screen
+
 - [ ] Welcome section
 - [ ] Stats cards (notes count, meetings count)
 - [ ] Recent notes list
@@ -406,6 +420,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Empty state
 
 #### 3.2 Notes List
+
 - [ ] Note cards (matching web design)
 - [ ] Filter options
 - [ ] Sort options
@@ -414,6 +429,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Pagination/infinite scroll
 
 #### 3.3 Upload Audio
+
 - [ ] Upload button (FAB)
 - [ ] File picker (device files)
 - [ ] Audio recording (native)
@@ -422,6 +438,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Background upload
 
 #### 3.4 Note Detail View
+
 - [ ] Note header with metadata
 - [ ] Audio player with controls
 - [ ] Tabs (Transcript, Summary, Actions, Topics)
@@ -432,6 +449,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Download transcript
 
 #### 3.5 API Integration
+
 - [ ] Upload audio to Supabase Storage
 - [ ] Trigger transcription API
 - [ ] Poll for processing status
@@ -442,6 +460,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 4: Live Meetings (Week 5-7)
 
 #### 4.1 Meeting List
+
 - [ ] Upcoming meetings
 - [ ] Past meetings
 - [ ] Meeting cards
@@ -450,6 +469,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Meeting code input
 
 #### 4.2 Meeting Room UI
+
 - [ ] Video grid layout
 - [ ] Participant avatars with speaking animation
 - [ ] Local video preview
@@ -459,6 +479,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Meeting timer
 
 #### 4.3 WebRTC Integration
+
 - [ ] Daily.co SDK integration
 - [ ] Join/create room
 - [ ] Audio/video streams
@@ -467,6 +488,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Network quality indicator
 
 #### 4.4 Real-time Transcription
+
 - [ ] Live transcript display
 - [ ] Speaker diarization
 - [ ] Auto-scroll transcript
@@ -474,6 +496,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Download transcript
 
 #### 4.5 Meeting Summary
+
 - [ ] Post-meeting summary screen
 - [ ] Key points
 - [ ] Action items
@@ -484,6 +507,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 5: Profile & Settings (Week 7-8)
 
 #### 5.1 Profile Screen
+
 - [ ] Avatar upload (camera/gallery)
 - [ ] Display name input
 - [ ] Email (read-only)
@@ -492,6 +516,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Loading states
 
 #### 5.2 Settings
+
 - [ ] Notifications preferences
 - [ ] Audio quality settings
 - [ ] Storage management
@@ -500,6 +525,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Logout button
 
 #### 5.3 Avatar Component
+
 - [ ] Avatar display with fallback
 - [ ] Speaking animation (green ring)
 - [ ] Size variants (sm, md, lg, xl)
@@ -510,6 +536,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 6: Polish & Optimization (Week 8-9)
 
 #### 6.1 Animations
+
 - [ ] Screen transitions
 - [ ] Card hover/press effects
 - [ ] Button press animations
@@ -518,6 +545,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Success animations
 
 #### 6.2 Offline Support
+
 - [ ] Cache notes locally
 - [ ] Cache user profile
 - [ ] Queue uploads when offline
@@ -525,6 +553,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Offline indicator
 
 #### 6.3 Performance
+
 - [ ] Image optimization
 - [ ] Lazy loading
 - [ ] Memoization
@@ -533,6 +562,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Reduce re-renders
 
 #### 6.4 Accessibility
+
 - [ ] Screen reader support
 - [ ] Font scaling
 - [ ] High contrast mode
@@ -541,6 +571,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Semantic labels
 
 #### 6.5 Error Handling
+
 - [ ] Error boundaries
 - [ ] Retry mechanisms
 - [ ] User-friendly error messages
@@ -550,6 +581,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 7: Testing & QA (Week 9-10)
 
 #### 7.1 Testing Setup
+
 - [ ] Unit tests (Jest)
 - [ ] Component tests (React Native Testing Library)
 - [ ] E2E tests (Detox)
@@ -557,6 +589,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Test coverage (>80%)
 
 #### 7.2 Manual Testing
+
 - [ ] iOS testing (multiple devices)
 - [ ] Android testing (multiple devices)
 - [ ] Dark mode testing (future)
@@ -564,6 +597,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Real device testing
 
 #### 7.3 Beta Testing
+
 - [ ] TestFlight setup (iOS)
 - [ ] Internal testing track (Android)
 - [ ] Beta user feedback
@@ -573,6 +607,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ### Phase 8: Deployment (Week 10-12)
 
 #### 8.1 App Store Preparation
+
 - [ ] App icons (all sizes)
 - [ ] Splash screens
 - [ ] App screenshots
@@ -581,6 +616,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Terms of service
 
 #### 8.2 Build & Submit
+
 - [ ] EAS Build configuration
 - [ ] iOS production build
 - [ ] Android production build
@@ -589,6 +625,7 @@ npm install react-native-reanimated react-native-gesture-handler
 - [ ] Review process
 
 #### 8.3 Post-Launch
+
 - [ ] Monitor crash reports
 - [ ] Monitor analytics
 - [ ] User feedback
@@ -628,6 +665,7 @@ npm install react-native-reanimated react-native-gesture-handler
 ```
 
 **Styling:**
+
 - Background: White
 - Primary button: Blue-500
 - Font: Inter
@@ -749,10 +787,11 @@ npm install react-native-reanimated react-native-gesture-handler
 Since the mobile app will use the **deployed Next.js API**, we need to:
 
 1. **API Base URL Configuration**
+
    ```typescript
    // constants/config.ts
    export const API_CONFIG = {
-     baseURL: __DEV__ 
+     baseURL: __DEV__
        ? 'http://localhost:3000' // Development
        : 'https://minuteai.vercel.app', // Production
      timeout: 30000,
@@ -760,12 +799,13 @@ Since the mobile app will use the **deployed Next.js API**, we need to:
    ```
 
 2. **Axios Client Setup**
+
    ```typescript
    // services/api/client.ts
    import axios from 'axios';
    import AsyncStorage from '@react-native-async-storage/async-storage';
    import { API_CONFIG } from '@/constants/config';
-   
+
    const apiClient = axios.create({
      baseURL: API_CONFIG.baseURL,
      timeout: API_CONFIG.timeout,
@@ -773,7 +813,7 @@ Since the mobile app will use the **deployed Next.js API**, we need to:
        'Content-Type': 'application/json',
      },
    });
-   
+
    // Request interceptor (add auth token)
    apiClient.interceptors.request.use(async (config) => {
      const token = await AsyncStorage.getItem('auth_token');
@@ -782,7 +822,7 @@ Since the mobile app will use the **deployed Next.js API**, we need to:
      }
      return config;
    });
-   
+
    // Response interceptor (handle errors)
    apiClient.interceptors.response.use(
      (response) => response,
@@ -795,21 +835,21 @@ Since the mobile app will use the **deployed Next.js API**, we need to:
        return Promise.reject(error);
      }
    );
-   
+
    export default apiClient;
    ```
 
 ### API Endpoints Mapping
 
-| Feature | Web API Route | Mobile Usage |
-|---------|---------------|--------------|
-| **Transcription** | `/api/transcribe` | Upload audio file |
-| **Save Transcript** | `/api/save-transcript` | Save transcription result |
-| **Get Meetings** | `/api/meetings/transcript` | Fetch meetings list |
-| **Summarize** | `/api/meetings/[id]/summarize` | Get meeting summary |
-| **Analysis** | `/api/analyze` | Get AI analysis |
-| **Pusher Auth** | `/api/pusher/auth` | Real-time auth |
-| **Transcription Token** | `/api/transcription/token` | Get AssemblyAI token |
+| Feature                 | Web API Route                  | Mobile Usage              |
+| ----------------------- | ------------------------------ | ------------------------- |
+| **Transcription**       | `/api/transcribe`              | Upload audio file         |
+| **Save Transcript**     | `/api/save-transcript`         | Save transcription result |
+| **Get Meetings**        | `/api/meetings/transcript`     | Fetch meetings list       |
+| **Summarize**           | `/api/meetings/[id]/summarize` | Get meeting summary       |
+| **Analysis**            | `/api/analyze`                 | Get AI analysis           |
+| **Pusher Auth**         | `/api/pusher/auth`             | Real-time auth            |
+| **Transcription Token** | `/api/transcription/token`     | Get AssemblyAI token      |
 
 ### Example API Service
 
@@ -823,37 +863,37 @@ export const notesAPI = {
   async uploadAudio(file: File): Promise<{ jobId: string }> {
     const formData = new FormData();
     formData.append('audio', file);
-    
+
     const { data } = await apiClient.post('/api/transcribe', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    
+
     return data;
   },
-  
+
   // Get note by ID
   async getNote(id: string): Promise<Note> {
     const { data } = await apiClient.get(`/api/notes/${id}`);
     return data;
   },
-  
+
   // Get all user notes
   async getNotes(): Promise<Note[]> {
     const { data } = await apiClient.get('/api/notes');
     return data;
   },
-  
+
   // Delete note
   async deleteNote(id: string): Promise<void> {
     await apiClient.delete(`/api/notes/${id}`);
   },
-  
+
   // Get transcription
   async getTranscription(noteId: string): Promise<Transcription> {
     const { data } = await apiClient.get(`/api/transcription/${noteId}`);
     return data;
   },
-  
+
   // Get AI analysis
   async getAnalysis(noteId: string): Promise<Analysis> {
     const { data } = await apiClient.get(`/api/analyze?noteId=${noteId}`);
@@ -887,12 +927,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export const subscribeToNotes = (userId: string, callback: (note: Note) => void) => {
   return supabase
     .channel('notes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'notes',
-      filter: `user_id=eq.${userId}`,
-    }, callback)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notes',
+        filter: `user_id=eq.${userId}`,
+      },
+      callback
+    )
     .subscribe();
 };
 ```
@@ -936,25 +980,25 @@ export const Button: React.FC<ButtonProps> = ({
     secondary: 'bg-white border border-gray-300 active:bg-gray-50',
     ghost: 'bg-transparent active:bg-gray-100',
   };
-  
+
   const sizeStyles = {
     sm: 'px-3 py-2',
     md: 'px-4 py-2.5',
     lg: 'px-6 py-3',
   };
-  
+
   const textVariants = {
     primary: 'text-white',
     secondary: 'text-gray-700',
     ghost: 'text-gray-600',
   };
-  
+
   const textSizes = {
     sm: 'text-sm',
     md: 'text-base',
     lg: 'text-lg',
   };
-  
+
   return (
     <StyledTouchable
       onPress={onPress}
@@ -1019,24 +1063,28 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
           </View>
           <Badge status={note.status} />
         </View>
-        
+
         {/* Metadata */}
         <Meta className="text-xs text-gray-600 mb-3">
-          {new Date(note.createdAt).toLocaleDateString()} · {formatDuration(note.duration)} · {formatFileSize(note.fileSize)}
+          {new Date(note.createdAt).toLocaleDateString()} · {formatDuration(note.duration)} ·{' '}
+          {formatFileSize(note.fileSize)}
         </Meta>
-        
+
         {/* Summary Preview */}
         {note.summary && (
           <Summary className="text-sm text-gray-600 mb-3" numberOfLines={2}>
             {note.summary}
           </Summary>
         )}
-        
+
         {/* Topics */}
         {note.keyTopics && note.keyTopics.length > 0 && (
           <Topics className="flex-row flex-wrap gap-2">
             {note.keyTopics.slice(0, 3).map((topic, index) => (
-              <Topic key={index} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
+              <Topic
+                key={index}
+                className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full"
+              >
                 #{topic}
               </Topic>
             ))}
@@ -1047,13 +1095,11 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
             )}
           </Topics>
         )}
-        
+
         {/* Footer */}
         {note.actionItems && note.actionItems.length > 0 && (
           <View className="flex-row items-center mt-3 pt-3 border-t border-gray-100">
-            <Text className="text-xs text-gray-600">
-              📋 {note.actionItems.length} action items
-            </Text>
+            <Text className="text-xs text-gray-600">📋 {note.actionItems.length} action items</Text>
           </View>
         )}
       </Card>
@@ -1106,14 +1152,14 @@ describe('Button Component', () => {
     const { getByText } = render(<Button title="Click me" onPress={() => {}} />);
     expect(getByText('Click me')).toBeTruthy();
   });
-  
+
   it('calls onPress when pressed', () => {
     const onPress = jest.fn();
     const { getByText } = render(<Button title="Click me" onPress={onPress} />);
     fireEvent.press(getByText('Click me'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
-  
+
   it('shows loading state', () => {
     const { getByTestId } = render(<Button title="Click me" onPress={() => {}} loading />);
     expect(getByTestId('activity-indicator')).toBeTruthy();
@@ -1129,11 +1175,11 @@ describe('Login Flow', () => {
   beforeAll(async () => {
     await device.launchApp();
   });
-  
+
   it('should show login screen', async () => {
     await expect(element(by.text('Welcome Back'))).toBeVisible();
   });
-  
+
   it('should login successfully', async () => {
     await element(by.id('email-input')).typeText('test@example.com');
     await element(by.id('password-input')).typeText('password123');
@@ -1213,9 +1259,7 @@ describe('Login Flow', () => {
       "resizeMode": "contain",
       "backgroundColor": "#3B82F6"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.minuteai.app",
@@ -1233,12 +1277,7 @@ describe('Login Flow', () => {
       },
       "package": "com.minuteai.app",
       "versionCode": 1,
-      "permissions": [
-        "RECORD_AUDIO",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+      "permissions": ["RECORD_AUDIO", "CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -1280,26 +1319,28 @@ describe('Login Flow', () => {
 
 ### Target Metrics
 
-| Metric | Target | How to Achieve |
-|--------|--------|----------------|
-| **App Launch** | < 2s | Code splitting, lazy loading |
-| **Screen Transition** | 60 FPS | React Native Reanimated |
-| **API Response** | < 1s | Caching, optimistic updates |
-| **Audio Upload** | < 5s for 10MB | Compression, background upload |
-| **Bundle Size** | < 50MB | Tree shaking, image optimization |
-| **Memory Usage** | < 200MB | Proper cleanup, image caching |
-| **Battery Drain** | < 5%/hour | Efficient polling, background tasks |
+| Metric                | Target        | How to Achieve                      |
+| --------------------- | ------------- | ----------------------------------- |
+| **App Launch**        | < 2s          | Code splitting, lazy loading        |
+| **Screen Transition** | 60 FPS        | React Native Reanimated             |
+| **API Response**      | < 1s          | Caching, optimistic updates         |
+| **Audio Upload**      | < 5s for 10MB | Compression, background upload      |
+| **Bundle Size**       | < 50MB        | Tree shaking, image optimization    |
+| **Memory Usage**      | < 200MB       | Proper cleanup, image caching       |
+| **Battery Drain**     | < 5%/hour     | Efficient polling, background tasks |
 
 ### Optimization Techniques
 
 1. **Code Splitting**
+
    ```typescript
    const NoteDetail = React.lazy(() => import('./screens/NoteDetail'));
    ```
 
 2. **Image Optimization**
+
    ```typescript
-   <Image 
+   <Image
      source={{ uri: note.imageUrl }}
      resizeMode="cover"
      defaultSource={require('./placeholder.png')}
@@ -1307,6 +1348,7 @@ describe('Login Flow', () => {
    ```
 
 3. **List Virtualization**
+
    ```typescript
    <FlashList
      data={notes}
@@ -1327,31 +1369,35 @@ describe('Login Flow', () => {
 ### Best Practices
 
 1. **Secure Storage**
+
    ```typescript
    import * as SecureStore from 'expo-secure-store';
-   
+
    // Store sensitive data
    await SecureStore.setItemAsync('auth_token', token);
    ```
 
 2. **API Key Protection**
+
    - Never commit `.env` files
    - Use EAS Secrets for production keys
    - Rotate keys regularly
 
 3. **SSL Pinning** (Optional, advanced)
+
    ```typescript
    import { setCustomPinning } from 'react-native-ssl-pinning';
-   
+
    setCustomPinning({
      'api.minuteai.com': 'sha256/AAAA...',
    });
    ```
 
 4. **Input Validation**
+
    ```typescript
    import * as yup from 'yup';
-   
+
    const loginSchema = yup.object({
      email: yup.string().email().required(),
      password: yup.string().min(8).required(),
@@ -1359,9 +1405,10 @@ describe('Login Flow', () => {
    ```
 
 5. **Prevent Screenshots** (for sensitive screens)
+
    ```typescript
    import { preventScreenCapture } from 'expo-screen-capture';
-   
+
    useEffect(() => {
      preventScreenCapture();
      return () => allowScreenCapture();
@@ -1505,16 +1552,16 @@ eas update --branch production --message "Bug fixes"
 
 ## 📅 Timeline Summary
 
-| Phase | Duration | Deliverables |
-|-------|----------|--------------|
-| **Phase 1: Foundation** | Week 1-2 | Project setup, design system, navigation |
-| **Phase 2: Authentication** | Week 2-3 | Login, signup, OAuth integration |
-| **Phase 3: Notes** | Week 3-5 | Dashboard, notes list, upload, detail view |
-| **Phase 4: Meetings** | Week 5-7 | Meeting list, room UI, WebRTC, transcription |
-| **Phase 5: Profile** | Week 7-8 | Profile screen, settings, avatar |
-| **Phase 6: Polish** | Week 8-9 | Animations, offline, performance, accessibility |
-| **Phase 7: Testing** | Week 9-10 | Unit tests, E2E tests, beta testing |
-| **Phase 8: Deployment** | Week 10-12 | App Store submission, launch |
+| Phase                       | Duration   | Deliverables                                    |
+| --------------------------- | ---------- | ----------------------------------------------- |
+| **Phase 1: Foundation**     | Week 1-2   | Project setup, design system, navigation        |
+| **Phase 2: Authentication** | Week 2-3   | Login, signup, OAuth integration                |
+| **Phase 3: Notes**          | Week 3-5   | Dashboard, notes list, upload, detail view      |
+| **Phase 4: Meetings**       | Week 5-7   | Meeting list, room UI, WebRTC, transcription    |
+| **Phase 5: Profile**        | Week 7-8   | Profile screen, settings, avatar                |
+| **Phase 6: Polish**         | Week 8-9   | Animations, offline, performance, accessibility |
+| **Phase 7: Testing**        | Week 9-10  | Unit tests, E2E tests, beta testing             |
+| **Phase 8: Deployment**     | Week 10-12 | App Store submission, launch                    |
 
 **Total Estimated Time**: 8-12 weeks (depends on team size and complexity)
 
@@ -1560,22 +1607,26 @@ eas update --branch production --message "Bug fixes"
 ## 🚀 Next Steps
 
 1. **Initialize Expo Project**
+
    ```bash
    npx create-expo-app minuteai-mobile --template
    cd minuteai-mobile
    ```
 
 2. **Install Dependencies**
+
    ```bash
    # Follow installation commands in Phase 1.1
    ```
 
 3. **Set Up Design System**
+
    - Create `constants/colors.ts`
    - Create `constants/typography.ts`
    - Configure NativeWind
 
 4. **Build First Screen**
+
    - Start with Login screen
    - Match web design exactly
    - Test on iOS and Android
@@ -1590,6 +1641,7 @@ eas update --branch production --message "Bug fixes"
 ## 📞 Support & Feedback
 
 For questions or suggestions:
+
 - **Email**: dev@minuteai.com
 - **GitHub**: [github.com/minuteai/mobile](https://github.com/minuteai/mobile)
 - **Slack**: #mobile-app

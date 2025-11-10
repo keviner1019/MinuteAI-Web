@@ -83,8 +83,26 @@ export interface Analysis {
 export interface ActionItem {
   id: string;
   text: string;
-  priority?: 'high' | 'medium' | 'low';
+  priority: 'high' | 'medium' | 'low';
   completed: boolean;
+  deadline?: string; // ISO date string
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Transcript segment types (for interactive transcript)
+export interface TranscriptSegment {
+  id: string;
+  text: string;
+  start: number; // seconds
+  end: number; // seconds
+  speaker?: string; // Speaker A, Speaker B, etc.
+  confidence?: number;
+}
+
+// Extended Note type with transcript segments
+export interface NoteWithSegments extends Note {
+  transcriptSegments?: TranscriptSegment[];
 }
 
 // Processing job types

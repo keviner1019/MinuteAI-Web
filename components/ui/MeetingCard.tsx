@@ -35,8 +35,17 @@ export function MeetingCard({ meeting, onJoin, onViewSummary }: MeetingCardProps
     return 'scheduled';
   };
 
+  const handleCardClick = () => {
+    // If meeting has ended, go to summary; otherwise go to meeting room
+    if (meeting.status === 'ended' && onViewSummary) {
+      onViewSummary(meeting.room_id);
+    } else {
+      onJoin(meeting.room_id);
+    }
+  };
+
   return (
-    <div className="card cursor-pointer" onClick={() => onJoin(meeting.room_id)}>
+    <div className="card cursor-pointer" onClick={handleCardClick}>
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">

@@ -90,6 +90,25 @@ export async function POST(request: NextRequest) {
 
     console.log('Note updated successfully:', data[0]);
 
+    // Trigger AI analysis automatically (don't await - let it run in background)
+    console.log('Triggering AI analysis for note:', noteId);
+    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://minute-ai-web.vercel.app'}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ noteId, transcript: formattedTranscript }),
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          console.log('AI analysis triggered successfully for note:', noteId);
+        } else {
+          const error = await res.json();
+          console.error('AI analysis failed:', error);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to trigger AI analysis:', err);
+      });
+
     return NextResponse.json({
       success: true,
       transcript: formattedTranscript,

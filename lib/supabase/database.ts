@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { supabase } from './config';
-import type { Note, ActionItem } from '@/types';
+import type { Note, ActionItem, TranscriptSegment } from '@/types';
 import type { Database } from '@/types/supabase';
 
 type NoteRow = Database['public']['Tables']['notes']['Row'];
@@ -127,6 +127,39 @@ export async function updateNote(noteId: string, updates: Partial<Note>): Promis
   }
 
   return rowToNote(data);
+}
+
+/**
+ * Update action items for a note
+ */
+export async function updateActionItems(noteId: string, actionItems: ActionItem[]): Promise<void> {
+  const { error } = await supabase
+    .from('notes')
+    .update({ action_items: actionItems as any })
+    .eq('id', noteId);
+
+  if (error) {
+    console.error('Error updating action items:', error);
+    throw new Error(`Failed to update action items: ${error.message}`);
+  }
+}
+
+/**
+ * Update transcript segments for a note
+ */
+export async function updateTranscriptSegments(
+  noteId: string,
+  segments: TranscriptSegment[]
+): Promise<void> {
+  const { error } = await supabase
+    .from('notes')
+    .update({ transcript_segments: segments as any })
+    .eq('id', noteId);
+
+  if (error) {
+    console.error('Error updating transcript segments:', error);
+    throw new Error(`Failed to update transcript segments: ${error.message}`);
+  }
 }
 
 /**

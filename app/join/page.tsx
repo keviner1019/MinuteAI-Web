@@ -74,9 +74,7 @@ export default function JoinMeetingPage() {
             <Video className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Join a Meeting</h1>
-          <p className="text-gray-600">
-            Enter the meeting code provided by the host
-          </p>
+          <p className="text-gray-600">Enter the meeting code provided by the host</p>
         </div>
 
         {/* Join Form */}
@@ -84,10 +82,7 @@ export default function JoinMeetingPage() {
           <form onSubmit={handleJoinByCode} className="space-y-6">
             {/* Meeting Code Input */}
             <div>
-              <label
-                htmlFor="meetingCode"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="meetingCode" className="block text-sm font-medium text-gray-700 mb-2">
                 <Hash className="h-4 w-4 inline mr-1" />
                 Meeting Code
               </label>
@@ -127,9 +122,7 @@ export default function JoinMeetingPage() {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
-                or
-              </span>
+              <span className="px-2 bg-white text-gray-500">or</span>
             </div>
           </div>
 

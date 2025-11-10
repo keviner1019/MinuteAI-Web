@@ -6,9 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { ArrowLeft, Loader2, Play, Download, Trash2, CheckCircle, XCircle } from 'lucide-react';
-import { getNote, updateNote, deleteNote } from '@/lib/supabase/database';
-import { Note } from '@/types';
+import { ArrowLeft, Loader2, Play, Download, Trash2, XCircle } from 'lucide-react';
+import { getNote, deleteNote, updateActionItems } from '@/lib/supabase/database';
+import { Note, ActionItem, TranscriptSegment } from '@/types';
+import TranscriptViewer from '@/components/meeting/TranscriptViewer';
+import ActionItemsList from '@/components/meeting/ActionItemsList';
 
 export default function NotePage() {
   const params = useParams();
@@ -94,6 +96,44 @@ export default function NotePage() {
     } catch (err) {
       console.error('Delete error:', err);
       setError('Failed to delete note');
+    }
+  };
+
+  // Helper function to parse plain transcript into segments
+  const parseTranscriptToSegments = (transcript: string): TranscriptSegment[] => {
+    // Split transcript into sentences or paragraphs
+    const sentences = transcript.split(/(?<=[.!?])\s+/);
+    const segments: TranscriptSegment[] = [];
+    let currentTime = 0;
+    const avgWordsPerMinute = 150; // Average speaking rate
+
+    sentences.forEach((sentence, index) => {
+      const words = sentence.split(/\s+/).length;
+      const duration = (words / avgWordsPerMinute) * 60; // Convert to seconds
+
+      segments.push({
+        id: `segment-${index}`,
+        text: sentence.trim(),
+        start: currentTime,
+        end: currentTime + duration,
+        confidence: 0.95,
+      });
+
+      currentTime += duration;
+    });
+
+    return segments;
+  };
+
+  // Handle action items update
+  const handleUpdateActionItems = async (items: ActionItem[]) => {
+    try {
+      await updateActionItems(noteId, items);
+      // Update local state
+      setNote((prev) => (prev ? { ...prev, actionItems: items } : null));
+    } catch (error) {
+      console.error('Failed to update action items:', error);
+      throw error; // Let the component handle the error
     }
   };
 
@@ -218,15 +258,15 @@ export default function NotePage() {
             )}
           </div>
 
-          {/* Transcript */}
+          {/* Interactive Transcript */}
           {note.transcript && (
             <div className="card-lg mb-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Transcript</h2>
-              <div className="prose prose-sm max-w-none">
-                <p className="whitespace-pre-wrap text-gray-700 text-sm leading-relaxed">
-                  {note.transcript}
-                </p>
-              </div>
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Interactive Transcript</h2>
+              <TranscriptViewer
+                segments={parseTranscriptToSegments(note.transcript)}
+                audioUrl={note.storageUrl}
+                title={note.title}
+              />
             </div>
           )}
 
@@ -238,18 +278,14 @@ export default function NotePage() {
             </div>
           )}
 
-          {/* Action Items */}
+          {/* Smart Action Items */}
           {note.actionItems && note.actionItems.length > 0 && (
             <div className="card-lg mb-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Action Items</h2>
-              <ul className="space-y-2">
-                {note.actionItems.map((item, index) => (
-                  <li key={item.id || index} className="flex items-start gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 text-sm">{item.text}</span>
-                  </li>
-                ))}
-              </ul>
+              <ActionItemsList
+                initialItems={note.actionItems}
+                noteId={note.id}
+                onUpdate={handleUpdateActionItems}
+              />
             </div>
           )}
 

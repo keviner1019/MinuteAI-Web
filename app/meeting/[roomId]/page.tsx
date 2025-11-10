@@ -76,7 +76,12 @@ export default function MeetingRoom() {
   useEffect(() => {
     if (mixedStream && meetingId && !isTranscribing) {
       console.log('🎙️ Auto-starting transcription with mixed stream...');
-      console.log('Mixed stream tracks:', mixedStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+      console.log(
+        'Mixed stream tracks:',
+        mixedStream
+          .getTracks()
+          .map((t) => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }))
+      );
       startTranscription();
     }
   }, [mixedStream, meetingId, isTranscribing, startTranscription]);
