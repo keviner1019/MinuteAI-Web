@@ -114,9 +114,11 @@ export default function TranscriptViewer({
     return (
       <div className="text-center py-12">
         <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">
-          No transcript segments available yet. Process the audio to generate a transcript with
-          timestamps.
+        <p className="text-gray-500 text-sm mb-2">
+          No transcript segments available yet.
+        </p>
+        <p className="text-xs text-gray-400">
+          Process or re-process the audio to generate an interactive transcript with accurate timestamps.
         </p>
       </div>
     );
