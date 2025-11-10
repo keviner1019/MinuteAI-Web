@@ -68,7 +68,9 @@ export default function TranscriptTranslator({ text, onTranslate }: TranscriptTr
       setSelectedLanguage(languageName);
     } catch (error) {
       console.error('Translation error:', error);
-      alert('Translation failed. The service might be temporarily unavailable. Please try again later.');
+      alert(
+        'Translation failed. The service might be temporarily unavailable. Please try again later.'
+      );
     } finally {
       setTranslating(false);
     }
@@ -104,10 +106,7 @@ export default function TranscriptTranslator({ text, onTranslate }: TranscriptTr
       {showDropdown && (
         <>
           {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setShowDropdown(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
 
           {/* Menu */}
           <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
@@ -122,9 +121,7 @@ export default function TranscriptTranslator({ text, onTranslate }: TranscriptTr
                   onClick={handleShowOriginal}
                   className="w-full text-left px-3 py-2 hover:bg-blue-50 rounded-md transition-colors mb-1 border-b border-gray-200"
                 >
-                  <p className="text-sm font-medium text-blue-600">
-                    ← Show Original
-                  </p>
+                  <p className="text-sm font-medium text-blue-600">← Show Original</p>
                 </button>
               )}
 
@@ -144,7 +141,7 @@ export default function TranscriptTranslator({ text, onTranslate }: TranscriptTr
 
             <div className="p-2 border-t border-gray-200 bg-gray-50 sticky bottom-0">
               <p className="text-xs text-gray-500">
-                🌍 Translation powered by LibreTranslate (Free & Open Source)
+                🌍 Translation powered by DeepL (High Quality AI Translation)
               </p>
             </div>
           </div>

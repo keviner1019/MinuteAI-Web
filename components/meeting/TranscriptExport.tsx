@@ -48,7 +48,11 @@ const exportOptions: ExportOption[] = [
   },
 ];
 
-export default function TranscriptExport({ segments, title, language = 'Original' }: TranscriptExportProps) {
+export default function TranscriptExport({
+  segments,
+  title,
+  language = 'Original',
+}: TranscriptExportProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
 

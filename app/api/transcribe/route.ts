@@ -72,24 +72,29 @@ export async function POST(request: NextRequest) {
       }));
 
       console.log('Formatted transcript with speaker labels');
-      console.log('Created', transcriptSegments.length, 'transcript segments with accurate timestamps');
+      console.log(
+        'Created',
+        transcriptSegments.length,
+        'transcript segments with accurate timestamps'
+      );
     } else if (transcript.words && transcript.words.length > 0) {
       // Fallback: Use words if utterances not available
       // Group words into sentences (every 15-20 words or by punctuation)
       const wordsPerSegment = 15;
       for (let i = 0; i < transcript.words.length; i += wordsPerSegment) {
         const segmentWords = transcript.words.slice(i, i + wordsPerSegment);
-        const segmentText = segmentWords.map(w => w.text).join(' ');
-        
+        const segmentText = segmentWords.map((w) => w.text).join(' ');
+
         transcriptSegments.push({
           id: `segment-${Math.floor(i / wordsPerSegment)}`,
           text: segmentText,
           start: segmentWords[0].start / 1000, // First word start time
           end: segmentWords[segmentWords.length - 1].end / 1000, // Last word end time
-          confidence: segmentWords.reduce((acc, w) => acc + (w.confidence || 0), 0) / segmentWords.length,
+          confidence:
+            segmentWords.reduce((acc, w) => acc + (w.confidence || 0), 0) / segmentWords.length,
         });
       }
-      
+
       console.log('Created', transcriptSegments.length, 'transcript segments from words');
     }
 

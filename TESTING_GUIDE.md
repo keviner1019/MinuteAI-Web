@@ -1,6 +1,7 @@
 # 🧪 Testing Guide - Interactive Transcript Improvements
 
 ## 🚀 Production URL
+
 **https://minute-ai-b64kdvbcu-keviner1019s-projects.vercel.app**
 
 ---
@@ -13,6 +14,7 @@
 **After**: Uses real AssemblyAI utterances with frame-perfect accuracy
 
 **Test Steps**:
+
 1. Go to dashboard and upload an audio file
 2. Wait for transcription to complete
 3. Click on any transcript segment
@@ -30,10 +32,12 @@
 **After**: Full-featured audio player with all controls
 
 **Test Steps**:
+
 1. Open any note with transcript
 2. Look for the new audio player at the top
 
 **Test Each Control**:
+
 - [ ] **Play/Pause (▶️)**: Click to start/stop audio
 - [ ] **Stop (⏹️)**: Should reset to 0:00
 - [ ] **Skip Back (⏪)**: Goes back 10 seconds
@@ -53,6 +57,7 @@
 **After**: FREE translation to 20+ languages
 
 **Test Steps**:
+
 1. Open any note with transcript
 2. Look for "🌍 Translate" button next to Export
 3. Click the Translate button
@@ -66,13 +71,15 @@
    - Japanese (日本語)
    - Arabic (العربية)
 
-**Expected Result**: 
+**Expected Result**:
+
 - Translation completes in 3-5 seconds
 - All segments display translated text
 - Original text preserved (can switch back)
 - No errors in console
 
 **Test Translation Quality**:
+
 ```
 Original: "Hello everyone, let's start the meeting."
 Spanish: "Hola a todos, comencemos la reunión."
@@ -88,6 +95,7 @@ Chinese: "大家好，让我们开始会议。"
 **After**: Export in any translated language
 
 **Test Steps**:
+
 1. Translate transcript to Spanish
 2. Click "Export Transcript" button
 3. Try each format:
@@ -97,7 +105,8 @@ Chinese: "大家好，让我们开始会议。"
    - [ ] **Word Document (.docx)** - Should be editable Spanish
 4. Check filename includes language: `Meeting Notes (Spanish).pdf`
 
-**Expected Result**: 
+**Expected Result**:
+
 - All exports contain translated text
 - Timestamps preserved in all formats
 - Formatting correct (no broken characters)
@@ -108,12 +117,14 @@ Chinese: "大家好，让我们开始会议。"
 ## 🔍 Edge Cases to Test
 
 ### Test 1: Long Transcript (50+ segments)
+
 - Upload 10-minute audio file
 - Verify all segments translate correctly
 - Check translation doesn't time out
 - Verify export file size is reasonable
 
 ### Test 2: Multiple Languages
+
 - Translate to Spanish
 - Export as PDF
 - Translate to Chinese
@@ -121,6 +132,7 @@ Chinese: "大家好，让我们开始会议。"
 - Verify both files are correct
 
 ### Test 3: Audio Control During Playback
+
 - Start playing audio
 - Click segment in middle of transcript
 - ✅ Audio should jump immediately
@@ -128,6 +140,7 @@ Chinese: "大家好，让我们开始会议。"
 - ✅ Should change speed without stopping
 
 ### Test 4: Search with Translation
+
 - Translate to Spanish
 - Use search function
 - ✅ Should search translated text
@@ -135,6 +148,7 @@ Chinese: "大家好，让我们开始会议。"
 - ✅ Should search original text
 
 ### Test 5: Mobile Responsiveness
+
 - Open on mobile browser
 - Test audio controls (touch-friendly?)
 - Test translation dropdown (scrollable?)
@@ -145,21 +159,25 @@ Chinese: "大家好，让我们开始会议。"
 ## 🐛 Known Issues to Watch For
 
 ### Issue 1: Translation API Timeout
+
 **Symptom**: "Translation failed" error after 30+ seconds
 **Cause**: LibreTranslate API might be slow or down
 **Solution**: Retry translation or try different language
 
 ### Issue 2: Audio Sync Lag
+
 **Symptom**: Audio plays 1-2 seconds after clicking segment
 **Cause**: Browser audio buffering
 **Solution**: Normal behavior, not a bug
 
 ### Issue 3: PDF Export Special Characters
+
 **Symptom**: Chinese/Arabic characters look weird in PDF
 **Cause**: jsPDF font support
 **Solution**: Known limitation, use DOCX instead
 
 ### Issue 4: Large File Exports
+
 **Symptom**: Browser freezes when exporting 100+ segments
 **Cause**: Client-side processing
 **Solution**: Export in smaller chunks
@@ -169,23 +187,27 @@ Chinese: "大家好，让我们开始会议。"
 ## 📊 Performance Benchmarks
 
 ### Transcription (Unchanged)
+
 - 1 minute audio: ~30 seconds processing
 - 10 minute audio: ~3-5 minutes processing
 - Cost: $0.25 per hour of audio
 
 ### Translation (NEW - FREE!)
+
 - 10 segments: ~1-2 seconds
 - 50 segments: ~3-5 seconds
 - 100 segments: ~8-10 seconds
 - Cost: $0.00 (100% FREE)
 
 ### Export Generation
+
 - TXT: Instant (<1 second)
 - SRT: Instant (<1 second)
 - PDF: 1-3 seconds (depends on length)
 - DOCX: 2-5 seconds (depends on length)
 
 ### Audio Controls
+
 - Play/Pause: Instant
 - Seeking: Instant
 - Speed change: Instant
@@ -197,28 +219,32 @@ Chinese: "大家好，让我们开始会议。"
 
 All features pass if:
 
-1. **Timestamp Accuracy**: 
+1. **Timestamp Accuracy**:
+
    - ✅ Audio plays EXACTLY what segment says
    - ✅ No drift or lag after 10+ minutes
 
-2. **Audio Controls**: 
+2. **Audio Controls**:
+
    - ✅ All 8 controls work perfectly
    - ✅ No console errors
    - ✅ Visual feedback on all actions
 
-3. **Translation**: 
+3. **Translation**:
+
    - ✅ Translates to all 20 languages
    - ✅ Completes in < 10 seconds
    - ✅ No broken characters
    - ✅ Can switch back to original
 
-4. **Export**: 
+4. **Export**:
+
    - ✅ All 4 formats work
    - ✅ Translated text included
    - ✅ Language in filename
    - ✅ Proper formatting
 
-5. **Overall**: 
+5. **Overall**:
    - ✅ No TypeScript errors
    - ✅ No console errors
    - ✅ Mobile responsive
@@ -229,6 +255,7 @@ All features pass if:
 ## 🎯 Quick Test Checklist
 
 **5-Minute Quick Test**:
+
 - [ ] Upload audio file
 - [ ] Click segment → audio jumps correctly
 - [ ] Press play/pause → works
@@ -238,6 +265,7 @@ All features pass if:
 - [ ] All working? ✅ Ship it!
 
 **15-Minute Full Test**:
+
 - [ ] All items in Quick Test
 - [ ] Test all 8 audio controls
 - [ ] Translate to 3 different languages
@@ -272,6 +300,7 @@ If you find bugs, note these details:
 **Status**: ✅ Live in Production
 
 **Changes Deployed**:
+
 - 4 new files created
 - 12 files modified
 - 1,067 lines of code added

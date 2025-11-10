@@ -15,6 +15,7 @@ interface TranscriptViewerProps {
   segments: TranscriptSegment[];
   audioUrl: string;
   title: string;
+  noteId: string; // Add noteId for caching
   loading?: boolean;
 }
 
@@ -22,10 +23,11 @@ export default function TranscriptViewer({
   segments,
   audioUrl,
   title,
+  noteId,
   loading = false,
 }: TranscriptViewerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   // Translation state
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptSegment[]>([]);
   const [displayLanguage, setDisplayLanguage] = useState<string>('Original');
@@ -51,7 +53,7 @@ export default function TranscriptViewer({
     highlightedSegmentId,
   } = useTranscriptSearch({ segments: displaySegments });
 
-  // Handle translation
+  // Handle translation with caching
   const handleTranslate = async (translatedText: string, languageCode: string) => {
     if (languageCode === 'Original') {
       setTranslatedSegments([]);
@@ -59,12 +61,29 @@ export default function TranscriptViewer({
       return;
     }
 
-    // Translate all segments
+    // Check cache first
+    try {
+      const cacheResponse = await fetch(
+        `/api/translations-cache?noteId=${noteId}&targetLanguage=${languageCode}`
+      );
+      const cacheData = await cacheResponse.json();
+
+      if (cacheData.cached && cacheData.translatedSegments) {
+        console.log('Using cached translation');
+        setTranslatedSegments(cacheData.translatedSegments);
+        setDisplayLanguage(languageCode);
+        return;
+      }
+    } catch (error) {
+      console.warn('Cache check failed, proceeding with translation:', error);
+    }
+
+    // Translate all segments if not cached
     setDisplayLanguage(languageCode);
-    
+
     // Extract language code (e.g., "es" from "Spanish (Español)")
     const langCode = languageCode.toLowerCase().slice(0, 2);
-    
+
     const translated = await Promise.all(
       segments.map(async (segment) => {
         try {
@@ -97,6 +116,17 @@ export default function TranscriptViewer({
     );
 
     setTranslatedSegments(translated);
+
+    // Save to cache in background (don't await)
+    fetch('/api/translations-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        noteId,
+        targetLanguage: langCode,
+        translatedSegments: translated,
+      }),
+    }).catch((error) => console.warn('Failed to cache translation:', error));
   };
 
   // Handle segment click - seek audio to that time
@@ -117,11 +147,10 @@ export default function TranscriptViewer({
     return (
       <div className="text-center py-12">
         <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 text-sm mb-2">
-          No transcript segments available yet.
-        </p>
+        <p className="text-gray-500 text-sm mb-2">No transcript segments available yet.</p>
         <p className="text-xs text-gray-400">
-          Process or re-process the audio to generate an interactive transcript with accurate timestamps.
+          Process or re-process the audio to generate an interactive transcript with accurate
+          timestamps.
         </p>
       </div>
     );
@@ -157,11 +186,7 @@ export default function TranscriptViewer({
             text={segments.map((s) => s.text).join(' ')}
             onTranslate={handleTranslate}
           />
-          <TranscriptExport 
-            segments={displaySegments} 
-            title={title}
-            language={displayLanguage}
-          />
+          <TranscriptExport segments={displaySegments} title={title} language={displayLanguage} />
         </div>
       </div>
 

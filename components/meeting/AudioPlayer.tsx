@@ -154,9 +154,11 @@ export default function AudioPlayer({
           onChange={handleSeek}
           title="Seek audio"
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-          style={{
-            background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${progress}%, #E5E7EB ${progress}%, #E5E7EB 100%)`,
-          } as React.CSSProperties}
+          style={
+            {
+              background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${progress}%, #E5E7EB ${progress}%, #E5E7EB 100%)`,
+            } as React.CSSProperties
+          }
         />
         <div className="flex justify-between text-xs text-gray-600 mt-1">
           <span>{formatTime(currentTime)}</span>

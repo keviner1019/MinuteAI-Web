@@ -262,7 +262,7 @@ export default function NotePage() {
           {note.transcript && (
             <div className="card-lg mb-6">
               <h2 className="text-base font-semibold text-gray-900 mb-4">Interactive Transcript</h2>
-              
+
               {/* Show re-process button if no segments available */}
               {(!note.transcriptSegments || note.transcriptSegments.length === 0) && (
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -272,7 +272,7 @@ export default function NotePage() {
                         Transcript needs updating
                       </p>
                       <p className="text-xs text-yellow-700 mb-3">
-                        This transcript was created before the timestamp feature was added. 
+                        This transcript was created before the timestamp feature was added.
                         Re-process the audio to get accurate timestamps and interactive features.
                       </p>
                       <Button
@@ -294,6 +294,7 @@ export default function NotePage() {
                 segments={note.transcriptSegments || parseTranscriptToSegments(note.transcript)}
                 audioUrl={note.storageUrl}
                 title={note.title}
+                noteId={note.id}
               />
             </div>
           )}
