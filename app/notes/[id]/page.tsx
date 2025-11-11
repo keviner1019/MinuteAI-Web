@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import { ArrowLeft, Loader2, Play, Download, Trash2, XCircle } from 'lucide-react';
 import { getNote, deleteNote, updateActionItems } from '@/lib/supabase/database';
 import { Note, ActionItem, TranscriptSegment } from '@/types';
@@ -204,7 +203,7 @@ export default function NotePage() {
             <audio controls className="w-full" src={note.storageUrl}>
               Your browser does not support the audio element.
             </audio>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center justify-between">
               <a
                 href={note.storageUrl}
                 download={note.fileName}
@@ -213,82 +212,25 @@ export default function NotePage() {
                 <Download className="h-4 w-4" />
                 Download Audio
               </a>
+              {!note.transcript && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleProcess}
+                  disabled={processing}
+                  isLoading={processing}
+                >
+                  <Play className="h-4 w-4" />
+                  {processing ? 'Processing...' : 'Generate Transcript'}
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Status & Processing */}
-          <div className="card-lg mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Processing Status</h2>
-              <Badge
-                variant={
-                  note.status === 'completed'
-                    ? 'completed'
-                    : note.status === 'processing'
-                    ? 'processing'
-                    : note.status === 'failed'
-                    ? 'failed'
-                    : 'scheduled'
-                }
-              >
-                {note.status.charAt(0).toUpperCase() + note.status.slice(1)}
-              </Badge>
-            </div>
-
-            {note.status === 'processing' && (
-              <div className="mb-4">
-                <p className="text-gray-600 mb-2 text-sm">Processing audio file...</p>
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                  <span className="text-xs text-gray-500">This may take a few minutes</span>
-                </div>
-              </div>
-            )}
-
-            {!note.transcript && note.status !== 'completed' && (
-              <Button
-                variant="primary"
-                onClick={handleProcess}
-                disabled={processing}
-                isLoading={processing}
-              >
-                <Play className="h-4 w-4" />
-                {processing ? 'Processing...' : 'Process Audio'}
-              </Button>
-            )}
-          </div>
-
-          {/* Interactive Transcript */}
+          {/* Transcript */}
           {note.transcript && (
             <div className="card-lg mb-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Interactive Transcript</h2>
-
-              {/* Show re-process button if no segments available */}
-              {(!note.transcriptSegments || note.transcriptSegments.length === 0) && (
-                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-yellow-800 mb-1">
-                        Transcript needs updating
-                      </p>
-                      <p className="text-xs text-yellow-700 mb-3">
-                        This transcript was created before the timestamp feature was added.
-                        Re-process the audio to get accurate timestamps and interactive features.
-                      </p>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleProcess}
-                        disabled={processing}
-                        isLoading={processing}
-                      >
-                        <Play className="h-4 w-4" />
-                        {processing ? 'Re-processing...' : 'Re-process with Timestamps'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Transcript</h2>
 
               <TranscriptViewer
                 segments={note.transcriptSegments || parseTranscriptToSegments(note.transcript)}

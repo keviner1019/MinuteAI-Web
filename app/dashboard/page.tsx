@@ -132,7 +132,6 @@ export default function DashboardPage() {
         fileSize: file.size,
         fileType: file.type,
         storageUrl: storageUrl,
-        status: 'processing',
       });
       console.log('Note created successfully:', newNote.id);
 

@@ -9,10 +9,7 @@ export async function GET(request: NextRequest) {
     const targetLanguage = searchParams.get('targetLanguage');
 
     if (!noteId || !targetLanguage) {
-      return NextResponse.json(
-        { error: 'Missing noteId or targetLanguage' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing noteId or targetLanguage' }, { status: 400 });
     }
 
     const supabase = createServerClient();
@@ -47,10 +44,7 @@ export async function POST(request: NextRequest) {
     const { noteId, targetLanguage, translatedSegments } = body;
 
     if (!noteId || !targetLanguage || !translatedSegments) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const supabase = createServerClient();

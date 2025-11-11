@@ -89,7 +89,6 @@ ${transcript}
         summary: analysis.summary || '',
         action_items: actionItems,
         key_topics: analysis.keyTopics || [],
-        status: 'completed',
       })
       .eq('id', noteId)
       .select();
@@ -117,16 +116,6 @@ ${transcript}
     });
   } catch (error: any) {
     console.error('AI analysis error:', error);
-
-    // Update note status to failed
-    if (noteId) {
-      try {
-        // @ts-ignore - Admin client bypasses RLS
-        await supabaseAdmin.from('notes').update({ status: 'failed' }).eq('id', noteId);
-      } catch (updateError) {
-        console.error('Failed to update note status:', updateError);
-      }
-    }
 
     return NextResponse.json({ error: error.message || 'AI analysis failed' }, { status: 500 });
   }

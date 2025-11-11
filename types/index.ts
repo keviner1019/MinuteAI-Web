@@ -27,7 +27,7 @@ export interface Note {
   fileType: string;
   storageUrl: string;
   duration?: number; // in seconds
-  status: 'uploading' | 'processing' | 'completed' | 'failed';
+  status?: 'uploading' | 'processing' | 'completed' | 'failed'; // Made optional - deprecated field
   transcript?: string;
   transcriptSegments?: TranscriptSegment[]; // Add segments with accurate timestamps
   summary?: string;

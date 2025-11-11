@@ -1,6 +1,7 @@
 # DeepL Translation Setup Guide
 
 ## Overview
+
 Your app now uses **DeepL API** for high-quality AI translations. This guide will help you set up the API key and understand the caching system.
 
 ---
@@ -8,6 +9,7 @@ Your app now uses **DeepL API** for high-quality AI translations. This guide wil
 ## 🔑 Step 1: Get Your DeepL API Key
 
 ### Option 1: DeepL Free Plan (Recommended for Testing)
+
 1. Go to https://www.deepl.com/pro-api
 2. Click "Sign up for free"
 3. Fill in your information
@@ -16,16 +18,19 @@ Your app now uses **DeepL API** for high-quality AI translations. This guide wil
 6. Copy your **Authentication Key** (ends with `:fx`)
 
 **Free Plan Limits:**
+
 - ✅ 500,000 characters/month FREE
 - ✅ Perfect for testing and small projects
 - ✅ Same translation quality as Pro
 
 ### Option 2: DeepL Pro Plan (For Production)
+
 1. Go to https://www.deepl.com/pro-api
 2. Choose a paid plan
 3. Get your **Authentication Key** (no `:fx` suffix)
 
 **Pro Plan Benefits:**
+
 - Unlimited characters (pay per use)
 - $5/million characters (~$0.000005 per character)
 - Higher rate limits
@@ -36,6 +41,7 @@ Your app now uses **DeepL API** for high-quality AI translations. This guide wil
 ## 🛠️ Step 2: Add API Key to Your Project
 
 ### Local Development (.env.local)
+
 1. Open your project in VS Code
 2. Create/edit `.env.local` file in the root directory
 3. Add your DeepL API key:
@@ -45,11 +51,13 @@ DEEPL_API_KEY=your-api-key-here:fx
 ```
 
 **Example**:
+
 ```env
 DEEPL_API_KEY=335b89f0-e19d-47f9-bb07-bc63400be040:fx
 ```
 
 ### Production (Vercel)
+
 1. Go to your Vercel dashboard
 2. Select your project (MinuteAI-Web)
 3. Go to **Settings** → **Environment Variables**
@@ -67,6 +75,7 @@ DEEPL_API_KEY=335b89f0-e19d-47f9-bb07-bc63400be040:fx
 The caching system requires a new database table to store translations.
 
 ### Run Migration in Supabase
+
 1. Go to your Supabase Dashboard: https://supabase.com/dashboard
 2. Select your project
 3. Go to **SQL Editor**
@@ -77,6 +86,7 @@ The caching system requires a new database table to store translations.
 5. Click **Run** to execute the migration
 
 ### What This Creates:
+
 - `translations_cache` table to store translated segments
 - Indexes for fast lookups
 - Row Level Security (RLS) policies for user data protection
@@ -86,6 +96,7 @@ The caching system requires a new database table to store translations.
 ## 🚀 Step 4: Test Translation
 
 ### Local Testing
+
 1. Start your dev server: `npm run dev`
 2. Open a note with transcript
 3. Click **"🌍 Translate"** button
@@ -95,6 +106,7 @@ The caching system requires a new database table to store translations.
 7. Try switching back to same language → Should load instantly from cache!
 
 ### Production Testing
+
 1. Deploy to Vercel: `vercel --prod`
 2. Open your production app
 3. Test translation feature
@@ -105,6 +117,7 @@ The caching system requires a new database table to store translations.
 ## 📊 How Caching Works
 
 ### First Translation (API Call)
+
 ```
 User clicks "Translate to Spanish"
   ↓
@@ -122,6 +135,7 @@ Display translated text
 **Cost**: ~10 API calls (~$0.0001)
 
 ### Second Translation (Cached)
+
 ```
 User clicks "Translate to Spanish" again
   ↓
@@ -139,6 +153,7 @@ Display translated text
 ## 💰 Cost Analysis
 
 ### Without Caching
+
 - 1 transcript = 50 segments
 - Each segment needs translation
 - **50 API calls per translation**
@@ -146,6 +161,7 @@ Display translated text
 - Cost: ~$0.025
 
 ### With Caching
+
 - First user: 50 API calls (saves to cache)
 - Next 99 users: **0 API calls** (load from cache)
 - **50 API calls total**
@@ -158,6 +174,7 @@ Display translated text
 ## 🔍 Monitoring API Usage
 
 ### Check DeepL Usage
+
 1. Go to https://www.deepl.com/account/usage
 2. See your current usage:
    - Characters used this month
@@ -165,11 +182,13 @@ Display translated text
    - API calls count
 
 ### Check Cache Performance
+
 In your Supabase Dashboard:
+
 ```sql
 -- How many translations are cached?
-SELECT 
-  target_language, 
+SELECT
+  target_language,
   COUNT(*) as cache_count,
   MAX(updated_at) as last_used
 FROM translations_cache
@@ -183,22 +202,22 @@ ORDER BY cache_count DESC;
 
 DeepL supports the following target languages:
 
-| Language | Code | DeepL Code |
-|----------|------|------------|
-| English | `en` | `EN` |
-| Chinese | `zh` | `ZH` |
-| Spanish | `es` | `ES` |
-| French | `fr` | `FR` |
-| German | `de` | `DE` |
-| Japanese | `ja` | `JA` |
-| Korean | `ko` | `KO` |
-| Portuguese | `pt` | `PT-PT` |
-| Russian | `ru` | `RU` |
-| Italian | `it` | `IT` |
-| Dutch | `nl` | `NL` |
-| Polish | `pl` | `PL` |
-| Turkish | `tr` | `TR` |
-| Swedish | `sv` | `SV` |
+| Language   | Code | DeepL Code |
+| ---------- | ---- | ---------- |
+| English    | `en` | `EN`       |
+| Chinese    | `zh` | `ZH`       |
+| Spanish    | `es` | `ES`       |
+| French     | `fr` | `FR`       |
+| German     | `de` | `DE`       |
+| Japanese   | `ja` | `JA`       |
+| Korean     | `ko` | `KO`       |
+| Portuguese | `pt` | `PT-PT`    |
+| Russian    | `ru` | `RU`       |
+| Italian    | `it` | `IT`       |
+| Dutch      | `nl` | `NL`       |
+| Polish     | `pl` | `PL`       |
+| Turkish    | `tr` | `TR`       |
+| Swedish    | `sv` | `SV`       |
 
 **Note**: Arabic, Hindi, Thai, Vietnamese, Indonesian, and Malay are NOT supported by DeepL. These will show an error message if selected.
 
@@ -207,22 +226,27 @@ DeepL supports the following target languages:
 ## 🐛 Troubleshooting
 
 ### Error: "Translation service not configured"
+
 - **Cause**: `DEEPL_API_KEY` not set in environment variables
 - **Fix**: Add the API key to `.env.local` (local) or Vercel settings (production)
 
 ### Error: "Translation failed: Invalid authentication"
+
 - **Cause**: Wrong API key or expired key
 - **Fix**: Double-check your API key from DeepL dashboard
 
 ### Error: "No translation returned from API"
+
 - **Cause**: Language not supported by DeepL
 - **Fix**: Use only supported languages (remove unsupported ones from dropdown)
 
 ### Translation is slow (>10 seconds)
+
 - **Cause**: Translating many segments at once
 - **Fix**: Normal behavior for first translation. Subsequent translations will be instant due to caching.
 
 ### Cache not working (always calls API)
+
 - **Cause**: Database migration not run
 - **Fix**: Run the `20251110_add_translations_cache.sql` migration in Supabase
 
@@ -231,10 +255,13 @@ DeepL supports the following target languages:
 ## 📈 Optimization Tips
 
 ### 1. Preload Popular Languages
+
 If you have many users translating to Spanish, you can pre-translate one note to Spanish, and all users will benefit from the cache.
 
 ### 2. Clear Old Caches
+
 Optional: Set up a cron job to delete old cached translations:
+
 ```sql
 -- Delete caches older than 30 days
 DELETE FROM translations_cache
@@ -242,6 +269,7 @@ WHERE updated_at < NOW() - INTERVAL '30 days';
 ```
 
 ### 3. Monitor API Costs
+
 Set up alerts in DeepL dashboard to notify you when you're approaching your limit.
 
 ---
@@ -265,6 +293,7 @@ Before deploying to production:
 ## 🎉 Summary
 
 **What You Get:**
+
 - ✅ High-quality AI translation (DeepL is better than Google Translate)
 - ✅ 99% cost reduction with smart caching
 - ✅ Instant translations after first use
@@ -272,11 +301,13 @@ Before deploying to production:
 - ✅ Support for 14+ languages
 
 **Your Current Setup:**
+
 - **API Key**: `335b89f0-e19d-47f9-bb07-bc63400be040:fx` (Free Plan)
 - **Free Characters**: 500,000/month (~100 full transcripts)
 - **Cache Table**: `translations_cache` (needs migration)
 
 **Next Steps:**
+
 1. Add API key to Vercel environment variables
 2. Run database migration
 3. Deploy and test!

@@ -106,7 +106,6 @@ export async function POST(request: NextRequest) {
         transcript: formattedTranscript, // Use formatted transcript with speaker labels
         transcript_segments: transcriptSegments, // Save accurate timestamp segments
         duration: Math.round(transcript.audio_duration || 0),
-        status: 'processing',
       })
       .eq('id', noteId)
       .select();
@@ -154,16 +153,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Transcription error:', error);
-
-    // Update note status to failed
-    if (noteId) {
-      try {
-        // @ts-ignore - Admin client bypasses RLS
-        await supabaseAdmin.from('notes').update({ status: 'failed' }).eq('id', noteId);
-      } catch (updateError) {
-        console.error('Failed to update note status:', updateError);
-      }
-    }
 
     return NextResponse.json({ error: error.message || 'Transcription failed' }, { status: 500 });
   }
