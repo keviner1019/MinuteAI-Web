@@ -41,7 +41,13 @@ export async function POST(request: NextRequest) {
     ) {
       // For Office documents, we'll create a placeholder
       // In production, you'd use libraries like mammoth, officegen, etc.
-      extractedContent = `Office Document: ${fileName}\n\nThis is a ${fileType.includes('word') ? 'Word' : fileType.includes('presentation') ? 'PowerPoint' : 'Excel'} document. Content extraction requires additional processing.`;
+      extractedContent = `Office Document: ${fileName}\n\nThis is a ${
+        fileType.includes('word')
+          ? 'Word'
+          : fileType.includes('presentation')
+          ? 'PowerPoint'
+          : 'Excel'
+      } document. Content extraction requires additional processing.`;
     } else {
       extractedContent = `Document: ${fileName}\n\nUnsupported file type for automatic content extraction.`;
     }

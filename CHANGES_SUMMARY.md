@@ -25,28 +25,33 @@ This update removes the transcript interaction features (click to jump to timest
 #### Note Detail Page (`app/notes/[id]/page.tsx`)
 
 **Removed**:
+
 - ❌ `processing` state variable
 - ❌ `handleProcess()` function for manual transcription triggering
 - ❌ "Generate Transcript" button
 - ❌ Helper function `parseTranscriptToSegments()`
 
 **Added**:
+
 - ✅ New "Completed Transcription" section with green checkmark indicator
 - ✅ Cleaner UI showing transcription status
 
 **Updated**:
+
 - Audio player section simplified (no processing button)
 - Import statements updated (removed `Play` icon)
 
 #### Note Card Component (`components/ui/NoteCard.tsx`)
 
 **Removed**:
+
 - ❌ `getStatusVariant()` function
 - ❌ `statusText` mapping object
 - ❌ Badge component import and usage
 - ❌ Status badge display
 
 **Added**:
+
 - ✅ Simple "Complete" indicator with checkmark when transcript exists
 - ✅ Cleaner card layout
 
@@ -55,6 +60,7 @@ This update removes the transcript interaction features (click to jump to timest
 #### Types (`types/index.ts`)
 
 **Changed**:
+
 ```typescript
 // Before
 status?: 'uploading' | 'processing' | 'completed' | 'failed';
@@ -64,6 +70,7 @@ status?: 'uploading' | 'processing' | 'completed' | 'failed';
 ```
 
 **Updated Comments**:
+
 - Added deprecation notice for status field
 - Clarified that `transcriptSegments` are optional
 
@@ -72,11 +79,13 @@ status?: 'uploading' | 'processing' | 'completed' | 'failed';
 #### Database Functions (`lib/supabase/database.ts`)
 
 **Updated**:
+
 - `rowToNote()`: Removed status mapping, added comment about removal
 - `createNote()`: Removed status field from insert data
 - `updateNote()`: Removed status field from update data
 
 **Maintained**:
+
 - All other fields remain unchanged
 - Transcript segments handling intact
 - Action items and other features unaffected
@@ -86,17 +95,19 @@ status?: 'uploading' | 'processing' | 'completed' | 'failed';
 **New Migration**: `supabase/migrations/20251112_remove_status_tracking.sql`
 
 **Changes**:
+
 ```sql
 -- Make status column nullable (for backward compatibility)
-ALTER TABLE public.notes 
+ALTER TABLE public.notes
 ALTER COLUMN status DROP NOT NULL;
 
 -- Add deprecation comment
-COMMENT ON COLUMN public.notes.status IS 
+COMMENT ON COLUMN public.notes.status IS
   'DEPRECATED: No longer used for tracking. Will be removed in future version.';
 ```
 
 **Why This Approach**:
+
 - ✅ Maintains backward compatibility
 - ✅ Doesn't break existing data
 - ✅ Allows gradual migration
@@ -107,11 +118,13 @@ COMMENT ON COLUMN public.notes.status IS
 ## Features Removed
 
 ### 1. Transcript Interaction
+
 - ❌ Click segment to jump to audio timestamp
 - ❌ Automatic audio sync with transcript
 - ❌ Highlighted current segment during playback
 
 ### 2. Processing Status Tracking
+
 - ❌ Per-note status badges (uploading, processing, completed, failed)
 - ❌ Status-based filtering or sorting
 - ❌ Manual "Generate Transcript" trigger button
@@ -121,28 +134,33 @@ COMMENT ON COLUMN public.notes.status IS
 ## Features Retained
 
 ### ✅ Core Transcription
+
 - Audio file upload and storage
 - AssemblyAI transcription with accurate timestamps
 - Transcript segments with speaker labels
 - Full transcript text display
 
 ### ✅ Translation
+
 - 20+ language support via LibreTranslate
 - Real-time translation
 - Cached translations
 - Export in translated format
 
 ### ✅ Export
+
 - TXT, SRT, PDF, DOCX formats
 - All formats support translations
 - Filename includes language
 
 ### ✅ AI Features
+
 - Smart summaries
 - Action items extraction
 - Key topics identification
 
 ### ✅ Audio Controls
+
 - Play/pause/stop
 - Speed control (0.5x - 2x)
 - Volume control
@@ -156,12 +174,14 @@ COMMENT ON COLUMN public.notes.status IS
 ### For Developers
 
 1. **Update Your Local Database**:
+
    ```bash
    # Run the migration
    supabase db push
    ```
 
 2. **Update Dependencies** (if needed):
+
    ```bash
    npm install
    ```
@@ -175,11 +195,13 @@ COMMENT ON COLUMN public.notes.status IS
 ### For Production Deployment
 
 1. **Database Migration**:
+
    - The migration is backward compatible
    - Existing status values will remain but won't be displayed
    - No data loss occurs
 
 2. **Deploy Code**:
+
    ```bash
    git add .
    git commit -m "feat: Simplify transcript UI, remove status tracking"
@@ -198,11 +220,13 @@ COMMENT ON COLUMN public.notes.status IS
 ### What Users Will Notice
 
 1. **Simplified Note Cards**:
+
    - Status badges replaced with simple "Complete" indicator
    - Cleaner, less cluttered interface
    - Easier to scan for completed transcriptions
 
 2. **Note Detail Page**:
+
    - "Completed Transcription" section with green checkmark
    - No more "Generate Transcript" button
    - Automatic transcription (happens during upload)
@@ -254,20 +278,22 @@ COMMENT ON COLUMN public.notes.status IS
 If issues arise, you can rollback:
 
 1. **Revert Code Changes**:
+
    ```bash
    git revert HEAD
    git push origin main
    ```
 
 2. **Restore Status Column** (if needed):
+
    ```sql
    -- Make status NOT NULL again
-   ALTER TABLE public.notes 
+   ALTER TABLE public.notes
    ALTER COLUMN status SET NOT NULL;
-   
+
    -- Update NULL values to 'completed'
-   UPDATE public.notes 
-   SET status = 'completed' 
+   UPDATE public.notes
+   SET status = 'completed'
    WHERE status IS NULL;
    ```
 
@@ -278,10 +304,12 @@ If issues arise, you can rollback:
 ### Potential Enhancements
 
 1. **Complete Status Removal**:
+
    - After confirming stability, can drop status column entirely
    - Would require another migration
 
 2. **Enhanced Transcript Display**:
+
    - Could add collapsible sections
    - Could add search within transcript
    - Could add highlight/annotation features
@@ -342,7 +370,8 @@ A: That stays! It shows real-time progress during upload/processing.
 
 These changes simplify the user interface while maintaining all core functionality. The "Completed Transcription" section provides clearer feedback to users, and removing status badges makes the UI cleaner and easier to understand.
 
-**Total Impact**: 
+**Total Impact**:
+
 - ✅ Improved user experience
 - ✅ Simpler codebase
 - ✅ Easier maintenance

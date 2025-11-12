@@ -15,7 +15,7 @@ export function useNotes(userId: string | null) {
   // Manual refresh function
   const refreshNotes = useCallback(async () => {
     if (!userId) return;
-    
+
     try {
       const updatedNotes = await getNotes(userId);
       setNotes(updatedNotes);
@@ -36,13 +36,10 @@ export function useNotes(userId: string | null) {
 
     try {
       // Subscribe to real-time updates
-      const unsubscribe = subscribeToNotes(
-        userId,
-        (updatedNotes) => {
-          setNotes(updatedNotes);
-          setLoading(false);
-        }
-      );
+      const unsubscribe = subscribeToNotes(userId, (updatedNotes) => {
+        setNotes(updatedNotes);
+        setLoading(false);
+      });
 
       // Cleanup subscription on unmount
       return () => {

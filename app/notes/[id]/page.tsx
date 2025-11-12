@@ -181,9 +181,7 @@ export default function NotePage() {
               </div>
 
               <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-blockquote:text-gray-700 prose-blockquote:border-blue-500">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {note.markdownAnalysis}
-                </ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.markdownAnalysis}</ReactMarkdown>
               </div>
             </div>
           )}

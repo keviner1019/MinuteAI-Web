@@ -5,6 +5,7 @@
 ## Overview
 
 This update implements three major features:
+
 1. **Search and Filter functionality** for notes
 2. **Auto-refresh after upload** (no manual refresh needed)
 3. **Multi-file upload support** (audio + documents like PDF, Word, PPT, Excel)
@@ -16,21 +17,25 @@ This update implements three major features:
 ### What Was Added
 
 **Search Functionality**:
+
 - Full-text search across note titles, content, and topics
 - Real-time filtering as you type
 - Search bar with icon indicator
 
 **Filter Options**:
+
 - **All Notes**: Show all notes
 - **Completed**: Only show notes with transcriptions
 - **Pending**: Only show notes without transcriptions yet
 
 **Sort Options**:
+
 - **Newest First**: Sort by creation date (descending)
 - **Oldest First**: Sort by creation date (ascending)
 - **Title (A-Z)**: Alphabetical sort by title
 
 **UI Components**:
+
 - Search input with magnifying glass icon
 - Filter dropdown
 - Sort dropdown
@@ -50,11 +55,13 @@ This update implements three major features:
 ### What Was Added
 
 **Auto-Refresh Mechanism**:
+
 - Automatically refreshes notes list after successful upload
 - No need to manually click refresh button
 - Uses real-time Supabase subscriptions for instant updates
 
 **Implementation**:
+
 - Added `refreshNotes()` function to `useNotes` hook
 - Called automatically after upload completes
 - Seamless experience for users
@@ -73,10 +80,12 @@ This update implements three major features:
 **Supported File Types**:
 
 **Audio Files**:
+
 - MP3, WAV, M4A, FLAC, OGG, WEBM
 - Video files: MP4, WEBM (audio extracted)
 
 **Document Files**:
+
 - **PDF**: `.pdf`
 - **Word**: `.doc`, `.docx`
 - **PowerPoint**: `.ppt`, `.pptx`
@@ -84,6 +93,7 @@ This update implements three major features:
 - **Text**: `.txt`
 
 **Multi-File Upload**:
+
 - Drag & drop multiple files at once
 - Browse and select multiple files
 - File list shows all selected files
@@ -93,6 +103,7 @@ This update implements three major features:
 **Processing Pipeline**:
 
 1. **Audio Files**:
+
    - Upload to Supabase Storage
    - Transcribe using AssemblyAI
    - Extract accurate timestamps
@@ -106,6 +117,7 @@ This update implements three major features:
    - Create beautifully formatted analysis
 
 **Markdown Analysis for Documents**:
+
 - **Executive Summary**: 2-3 sentence overview
 - **Key Points**: Bullet point list
 - **Main Topics**: 3-5 identified themes
@@ -114,6 +126,7 @@ This update implements three major features:
 - **Conclusions**: Summary of outcomes
 
 **Beautiful Markdown Display**:
+
 - Uses `react-markdown` with `remark-gfm`
 - Styled with Tailwind Typography (`prose`)
 - Headers, bold text, bullet points, tables
@@ -129,6 +142,7 @@ This update implements three major features:
 ### Files Modified
 
 - `components/ui/UploadModal.tsx`: Complete rewrite for multi-file support
+
   - Changed from single file to multiple files
   - Added file type validation
   - Added file list display
@@ -136,18 +150,21 @@ This update implements three major features:
   - Updated accept types for all file formats
 
 - `app/dashboard/page.tsx`: Updated upload handler
+
   - Process multiple files in loop
   - Different processing for audio vs documents
   - Call appropriate API based on file type
   - Show progress for each file
 
 - `app/api/analyze/route.ts`: Enhanced analysis
+
   - Different prompts for audio vs documents
   - Generate markdown for documents
   - Store markdown_analysis field
   - Return structured analysis
 
 - `app/notes/[id]/page.tsx`: Display updates
+
   - Added `ReactMarkdown` import
   - Conditional display: transcript OR markdown
   - Beautiful markdown rendering with prose styles
@@ -164,7 +181,7 @@ This update implements three major features:
 ### New Column
 
 ```sql
-ALTER TABLE public.notes 
+ALTER TABLE public.notes
 ADD COLUMN IF NOT EXISTS markdown_analysis TEXT;
 ```
 
@@ -252,9 +269,7 @@ const filteredNotes = notes
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       note.transcript?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       note.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.keyTopics?.some((topic) => 
-        topic.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      note.keyTopics?.some((topic) => topic.toLowerCase().includes(searchQuery.toLowerCase()));
 
     // Type filter
     const matchesFilter =
@@ -312,10 +327,7 @@ for (let i = 0; i < files.length; i++) {
 ### Markdown Rendering
 
 ```tsx
-<ReactMarkdown 
-  remarkPlugins={[remarkGfm]}
-  className="prose prose-sm max-w-none"
->
+<ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none">
   {note.markdownAnalysis}
 </ReactMarkdown>
 ```
@@ -334,6 +346,7 @@ for (let i = 0; i < files.length; i++) {
 ```
 
 **Installation**:
+
 ```bash
 npm install react-markdown remark-gfm
 ```
@@ -345,16 +358,19 @@ npm install react-markdown remark-gfm
 ### For Users
 
 #### 1. Search Notes
+
 1. Type in the search bar at the top
 2. Results filter in real-time
 3. Search matches title, content, and topics
 
 #### 2. Filter & Sort
+
 1. Use "Filter" dropdown to show all/completed/pending
 2. Use "Sort" dropdown to change order
 3. See results count update automatically
 
 #### 3. Upload Multiple Files
+
 1. Click "Upload" button
 2. Drag multiple files or click to browse
 3. Select audio files, PDFs, Word docs, etc.
@@ -364,6 +380,7 @@ npm install react-markdown remark-gfm
 7. Wait for processing (auto-updates!)
 
 #### 4. View Document Analysis
+
 1. Open a document note
 2. See beautifully formatted markdown analysis
 3. Read executive summary, key points, action items
@@ -374,6 +391,7 @@ npm install react-markdown remark-gfm
 ## 🎯 Testing Checklist
 
 ### Search & Filter
+
 - [ ] Search by title works
 - [ ] Search by content works
 - [ ] Search by topics works
@@ -388,12 +406,14 @@ npm install react-markdown remark-gfm
 - [ ] Clear filters button works
 
 ### Auto-Refresh
+
 - [ ] Upload a file
 - [ ] New note appears automatically
 - [ ] No manual refresh needed
 - [ ] Real-time updates work
 
 ### Multi-File Upload
+
 - [ ] Can select multiple audio files
 - [ ] Can select multiple document files
 - [ ] Can mix audio and documents
@@ -404,6 +424,7 @@ npm install react-markdown remark-gfm
 - [ ] All files process successfully
 
 ### Document Processing
+
 - [ ] PDF files upload and process
 - [ ] Word documents (.docx) upload and process
 - [ ] PowerPoint files (.pptx) upload and process
@@ -416,6 +437,7 @@ npm install react-markdown remark-gfm
 - [ ] Key topics identified
 
 ### Audio Processing (Still Works)
+
 - [ ] Audio files transcribe correctly
 - [ ] Accurate timestamps preserved
 - [ ] Speaker labels work
@@ -476,17 +498,20 @@ Response:
 ### Document Text Extraction
 
 Currently, document processing creates placeholders for:
+
 - PDF files
 - Word documents
 - PowerPoint presentations
 - Excel spreadsheets
 
 **To Enable Full Extraction**, install:
+
 - `pdf-parse` for PDFs
 - `mammoth` for Word documents
 - `xlsx` for Excel files
 
 **Future Enhancement**:
+
 ```bash
 npm install pdf-parse mammoth xlsx
 ```
@@ -500,17 +525,20 @@ Then update `app/api/process-document/route.ts` with actual extraction logic.
 ### What Users Get
 
 ✅ **Search & Filter**:
+
 - Find notes instantly
 - Filter by completion status
 - Sort by date or title
 - See result counts
 
 ✅ **Auto-Refresh**:
+
 - No manual refresh needed
 - New notes appear automatically
 - Seamless experience
 
 ✅ **Multi-File Upload**:
+
 - Upload audio and documents together
 - Support for 10+ file types
 - Beautiful markdown analysis for documents
@@ -519,16 +547,19 @@ Then update `app/api/process-document/route.ts` with actual extraction logic.
 ### Developer Benefits
 
 ✅ **Clean Code**:
+
 - Modular file processing
 - Type-safe interfaces
 - Reusable components
 
 ✅ **Scalable Architecture**:
+
 - Easy to add new file types
 - Extensible processing pipeline
 - Flexible API design
 
 ✅ **Modern Stack**:
+
 - React Markdown rendering
 - TypeScript type safety
 - Tailwind styling
@@ -540,21 +571,25 @@ Then update `app/api/process-document/route.ts` with actual extraction logic.
 ### Recommended Enhancements
 
 1. **Full PDF Text Extraction**:
+
    - Install `pdf-parse`
    - Extract actual text from PDFs
    - Handle images and tables
 
 2. **Word/PowerPoint Processing**:
+
    - Install `mammoth` for Word
    - Install `officegen` for PowerPoint
    - Extract formatted content
 
 3. **Excel Data Analysis**:
+
    - Install `xlsx`
    - Parse spreadsheet data
    - Generate data summaries
 
 4. **Advanced Search**:
+
    - Add date range filters
    - Add file type filters
    - Add full-text search with weights

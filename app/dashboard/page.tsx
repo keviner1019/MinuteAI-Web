@@ -24,12 +24,12 @@ export default function DashboardPage() {
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [creatingMeeting, setCreatingMeeting] = useState(false);
   const [activeTab, setActiveTab] = useState<'notes' | 'meetings'>('notes');
-  
+
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'completed' | 'pending'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
-  
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -151,8 +151,7 @@ export default function DashboardPage() {
         console.log('Note created successfully:', newNote.id);
 
         // Step 3: Process based on file type
-        const isAudio =
-          file.type.startsWith('audio/') || file.type.startsWith('video/');
+        const isAudio = file.type.startsWith('audio/') || file.type.startsWith('video/');
         const isDocument =
           file.type.includes('pdf') ||
           file.type.includes('document') ||
@@ -401,9 +400,7 @@ export default function DashboardPage() {
                       <span className="text-sm font-medium text-gray-700">Sort:</span>
                       <select
                         value={sortBy}
-                        onChange={(e) =>
-                          setSortBy(e.target.value as 'newest' | 'oldest' | 'title')
-                        }
+                        onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'title')}
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="newest">Newest First</option>
