@@ -16,7 +16,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
-  const { notes, loading, error } = useNotes(user?.id || null);
+  const { notes, loading, error, refreshNotes } = useNotes(user?.id || null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [showProcessingToast, setShowProcessingToast] = useState(false);
@@ -24,6 +24,12 @@ export default function DashboardPage() {
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [creatingMeeting, setCreatingMeeting] = useState(false);
   const [activeTab, setActiveTab] = useState<'notes' | 'meetings'>('notes');
+  
+  // Search and Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'completed' | 'pending'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
+  
   const router = useRouter();
   const supabase = createClient();
 
@@ -112,60 +118,118 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
-  const handleUpload = async (file: File, title: string) => {
+  const handleUpload = async (files: File[], title: string) => {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // Step 1: Upload file to Supabase Storage
-      setProcessingStatus('Uploading file...');
+      setProcessingStatus('Uploading files...');
       setShowProcessingToast(true);
-      console.log('Uploading file to Supabase...');
-      const storageUrl = await uploadAudioFile(file, user.id);
-      console.log('Upload complete. URL:', storageUrl);
 
-      // Step 2: Create note document in Supabase Database
-      setProcessingStatus('Creating note...');
-      const newNote = await createNote({
-        userId: user.id,
-        title: title,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        storageUrl: storageUrl,
-      });
-      console.log('Note created successfully:', newNote.id);
+      // Process each file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileTitle = files.length > 1 ? `${title} (${i + 1})` : title;
 
-      // Step 3: Transcribe audio (WAIT for completion)
-      setProcessingStatus('Transcribing audio... This may take a few minutes');
-      const transcribeResponse = await fetch('/api/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: newNote.id, audioUrl: storageUrl }),
-      });
+        setProcessingStatus(`Processing file ${i + 1} of ${files.length}...`);
+        console.log(`Processing file: ${file.name}`);
 
-      if (!transcribeResponse.ok) {
-        throw new Error('Transcription failed');
+        // Step 1: Upload file to Supabase Storage
+        setProcessingStatus(`Uploading ${file.name}...`);
+        const storageUrl = await uploadAudioFile(file, user.id);
+        console.log('Upload complete. URL:', storageUrl);
+
+        // Step 2: Create note document in Supabase Database
+        setProcessingStatus('Creating note...');
+        const newNote = await createNote({
+          userId: user.id,
+          title: fileTitle,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          storageUrl: storageUrl,
+        });
+        console.log('Note created successfully:', newNote.id);
+
+        // Step 3: Process based on file type
+        const isAudio =
+          file.type.startsWith('audio/') || file.type.startsWith('video/');
+        const isDocument =
+          file.type.includes('pdf') ||
+          file.type.includes('document') ||
+          file.type.includes('word') ||
+          file.type.includes('presentation') ||
+          file.type.includes('powerpoint') ||
+          file.type.includes('spreadsheet') ||
+          file.type.includes('excel') ||
+          file.type.includes('text/plain');
+
+        let transcript = '';
+
+        if (isAudio) {
+          // Transcribe audio
+          setProcessingStatus('Transcribing audio... This may take a few minutes');
+          const transcribeResponse = await fetch('/api/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ noteId: newNote.id, audioUrl: storageUrl }),
+          });
+
+          if (!transcribeResponse.ok) {
+            throw new Error('Transcription failed');
+          }
+
+          const transcriptData = await transcribeResponse.json();
+          transcript = transcriptData.transcript;
+          console.log('Transcription completed');
+        } else if (isDocument) {
+          // Process document
+          setProcessingStatus('Extracting content from document...');
+          const processDocResponse = await fetch('/api/process-document', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              noteId: newNote.id,
+              fileUrl: storageUrl,
+              fileType: file.type,
+              fileName: file.name,
+            }),
+          });
+
+          if (!processDocResponse.ok) {
+            throw new Error('Document processing failed');
+          }
+
+          const docData = await processDocResponse.json();
+          transcript = docData.content;
+          console.log('Document processing completed');
+        }
+
+        // Step 4: Generate AI analysis
+        if (transcript) {
+          setProcessingStatus('Generating AI analysis...');
+          const analyzeResponse = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              noteId: newNote.id,
+              transcript,
+              fileType: file.type,
+            }),
+          });
+
+          if (!analyzeResponse.ok) {
+            throw new Error('AI analysis failed');
+          }
+
+          console.log('AI analysis completed');
+        }
       }
 
-      const { transcript } = await transcribeResponse.json();
-      console.log('Transcription completed');
+      // All files processed!
+      setProcessingStatus('✓ All files processed successfully!');
 
-      // Step 4: Generate AI analysis (WAIT for completion)
-      setProcessingStatus('Generating AI analysis...');
-      const analyzeResponse = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: newNote.id, transcript }),
-      });
-
-      if (!analyzeResponse.ok) {
-        throw new Error('AI analysis failed');
-      }
-
-      console.log('AI analysis completed');
-
-      // Step 5: All done!
-      setProcessingStatus('✓ Processing complete!');
+      // Auto-refresh notes list to show new uploads
+      await refreshNotes();
 
       // Hide toast after 2 seconds
       setTimeout(() => {
@@ -185,6 +249,36 @@ export default function DashboardPage() {
       throw error;
     }
   };
+
+  // Filter and search notes
+  const filteredNotes = notes
+    .filter((note) => {
+      // Search filter
+      const matchesSearch =
+        searchQuery === '' ||
+        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        note.transcript?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        note.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        note.keyTopics?.some((topic) => topic.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      // Type filter
+      const matchesFilter =
+        filterType === 'all' ||
+        (filterType === 'completed' && note.transcript) ||
+        (filterType === 'pending' && !note.transcript);
+
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (sortBy === 'oldest') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else {
+        // Sort by title
+        return a.title.localeCompare(b.title);
+      }
+    });
 
   return (
     <ProtectedRoute>
@@ -257,6 +351,75 @@ export default function DashboardPage() {
           {/* Notes Tab */}
           {activeTab === 'notes' && (
             <>
+              {/* Search and Filter Bar */}
+              {!loading && notes.length > 0 && (
+                <div className="mb-6 space-y-4">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search notes by title, content, or topics..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <svg
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+
+                  {/* Filter and Sort Controls */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {/* Filter by Status */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700">Filter:</span>
+                      <select
+                        value={filterType}
+                        onChange={(e) =>
+                          setFilterType(e.target.value as 'all' | 'completed' | 'pending')
+                        }
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="all">All Notes</option>
+                        <option value="completed">Completed</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
+
+                    {/* Sort By */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700">Sort:</span>
+                      <select
+                        value={sortBy}
+                        onChange={(e) =>
+                          setSortBy(e.target.value as 'newest' | 'oldest' | 'title')
+                        }
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="title">Title (A-Z)</option>
+                      </select>
+                    </div>
+
+                    {/* Results Count */}
+                    <div className="ml-auto text-sm text-gray-600">
+                      Showing {filteredNotes.length} of {notes.length} notes
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Loading State */}
               {loading && (
                 <div className="flex items-center justify-center py-16">
@@ -292,10 +455,44 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* No Results State */}
+              {!loading && !error && notes.length > 0 && filteredNotes.length === 0 && (
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                    <svg
+                      className="h-8 w-8 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">No notes found</h2>
+                  <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+                    Try adjusting your search or filter criteria
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterType('all');
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+
               {/* Notes Grid */}
-              {!loading && !error && notes.length > 0 && (
+              {!loading && !error && filteredNotes.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {notes.map((note) => (
+                  {filteredNotes.map((note) => (
                     <NoteCard
                       key={note.id}
                       note={note}

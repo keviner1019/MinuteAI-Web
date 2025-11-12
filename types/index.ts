@@ -27,10 +27,11 @@ export interface Note {
   fileType: string;
   storageUrl: string;
   duration?: number; // in seconds
-  status?: 'uploading' | 'processing' | 'completed' | 'failed'; // Made optional - deprecated field
+  // Removed: status field - no longer tracking processing status
   transcript?: string;
-  transcriptSegments?: TranscriptSegment[]; // Add segments with accurate timestamps
+  transcriptSegments?: TranscriptSegment[]; // Segments with timestamps (if available)
   summary?: string;
+  markdownAnalysis?: string; // Markdown formatted analysis for documents
   actionItems?: ActionItem[];
   keyTopics?: string[];
   createdAt: Date;

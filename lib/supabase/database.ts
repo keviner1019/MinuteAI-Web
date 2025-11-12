@@ -20,10 +20,11 @@ function rowToNote(row: NoteRow): Note {
     fileType: row.file_type,
     storageUrl: row.storage_url,
     duration: row.duration || undefined,
-    status: row.status,
+    // status field removed - no longer tracking
     transcript: row.transcript || undefined,
-    transcriptSegments: (row.transcript_segments || []) as TranscriptSegment[], // Add segments
+    transcriptSegments: (row.transcript_segments || []) as TranscriptSegment[],
     summary: row.summary || undefined,
+    markdownAnalysis: row.markdown_analysis || undefined,
     actionItems: (row.action_items || []) as ActionItem[],
     keyTopics: row.key_topics || undefined,
     createdAt: new Date(row.created_at),
@@ -80,7 +81,7 @@ export async function createNote(
     file_type: note.fileType,
     storage_url: note.storageUrl,
     duration: note.duration,
-    status: note.status,
+    // status field removed
     transcript: note.transcript,
     summary: note.summary,
     action_items: note.actionItems as any,
@@ -108,7 +109,7 @@ export async function updateNote(noteId: string, updates: Partial<Note>): Promis
   const updateData: NoteUpdate = {};
 
   if (updates.title !== undefined) updateData.title = updates.title;
-  if (updates.status !== undefined) updateData.status = updates.status;
+  // status field removed
   if (updates.transcript !== undefined) updateData.transcript = updates.transcript;
   if (updates.summary !== undefined) updateData.summary = updates.summary;
   if (updates.actionItems !== undefined) updateData.action_items = updates.actionItems as any;

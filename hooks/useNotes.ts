@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { subscribeToNotes } from '@/lib/supabase/database';
+import { useState, useEffect, useCallback } from 'react';
+import { subscribeToNotes, getNotes } from '@/lib/supabase/database';
 import { Note } from '@/types';
 
 /**
@@ -11,6 +11,18 @@ export function useNotes(userId: string | null) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Manual refresh function
+  const refreshNotes = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      const updatedNotes = await getNotes(userId);
+      setNotes(updatedNotes);
+    } catch (err) {
+      console.error('Error refreshing notes:', err);
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -43,5 +55,5 @@ export function useNotes(userId: string | null) {
     }
   }, [userId]);
 
-  return { notes, loading, error };
+  return { notes, loading, error, refreshNotes };
 }

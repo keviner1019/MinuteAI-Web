@@ -1,7 +1,6 @@
 import { Note } from '@/types';
-import { Clock, FileAudio, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, FileAudio, CheckCircle } from 'lucide-react';
 import { formatFileSize, formatDuration, formatTimestamp } from '@/utils/helpers';
-import Badge from './Badge';
 
 interface NoteCardProps {
   note: Note;
@@ -9,22 +8,6 @@ interface NoteCardProps {
 }
 
 export default function NoteCard({ note, onClick }: NoteCardProps) {
-  const getStatusVariant = (
-    status: string
-  ): 'completed' | 'processing' | 'failed' | 'scheduled' => {
-    if (status === 'completed') return 'completed';
-    if (status === 'processing' || status === 'uploading') return 'processing';
-    if (status === 'failed') return 'failed';
-    return 'scheduled';
-  };
-
-  const statusText = {
-    uploading: 'Uploading',
-    processing: 'Processing',
-    completed: 'Completed',
-    failed: 'Failed',
-  };
-
   return (
     <div onClick={onClick} className="card cursor-pointer">
       {/* Header */}
@@ -33,7 +16,13 @@ export default function NoteCard({ note, onClick }: NoteCardProps) {
           <FileAudio className="h-5 w-5 text-blue-600 flex-shrink-0" />
           <h3 className="text-base font-semibold text-gray-900 truncate">{note.title}</h3>
         </div>
-        <Badge variant={getStatusVariant(note.status)}>{statusText[note.status]}</Badge>
+        {/* Show completed indicator if transcript exists */}
+        {note.transcript && (
+          <div className="flex items-center gap-1 text-green-600 text-xs">
+            <CheckCircle className="h-4 w-4" />
+            <span className="font-medium">Complete</span>
+          </div>
+        )}
       </div>
 
       {/* Metadata */}

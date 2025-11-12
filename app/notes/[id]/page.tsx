@@ -5,11 +5,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
-import { ArrowLeft, Loader2, Play, Download, Trash2, XCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Download, Trash2, XCircle, CheckCircle2 } from 'lucide-react';
 import { getNote, deleteNote, updateActionItems } from '@/lib/supabase/database';
 import { Note, ActionItem, TranscriptSegment } from '@/types';
 import TranscriptViewer from '@/components/meeting/TranscriptViewer';
 import ActionItemsList from '@/components/meeting/ActionItemsList';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function NotePage() {
   const params = useParams();
@@ -17,7 +19,6 @@ export default function NotePage() {
   const { user } = useAuth();
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
 
   const noteId = params.id as string;
@@ -45,47 +46,6 @@ export default function NotePage() {
     }
   };
 
-  const handleProcess = async () => {
-    if (!note) return;
-
-    setProcessing(true);
-    setError('');
-
-    try {
-      // Step 1: Transcribe audio
-      const transcribeResponse = await fetch('/api/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: note.id, audioUrl: note.storageUrl }),
-      });
-
-      if (!transcribeResponse.ok) {
-        throw new Error('Transcription failed');
-      }
-
-      const { transcript } = await transcribeResponse.json();
-
-      // Step 2: Generate AI analysis
-      const analyzeResponse = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: note.id, transcript }),
-      });
-
-      if (!analyzeResponse.ok) {
-        throw new Error('AI analysis failed');
-      }
-
-      // Reload note to get updated data
-      await loadNote();
-    } catch (err: any) {
-      console.error('Processing error:', err);
-      setError(err.message || 'Failed to process audio');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this note?')) return;
 
@@ -96,32 +56,6 @@ export default function NotePage() {
       console.error('Delete error:', err);
       setError('Failed to delete note');
     }
-  };
-
-  // Helper function to parse plain transcript into segments
-  const parseTranscriptToSegments = (transcript: string): TranscriptSegment[] => {
-    // Split transcript into sentences or paragraphs
-    const sentences = transcript.split(/(?<=[.!?])\s+/);
-    const segments: TranscriptSegment[] = [];
-    let currentTime = 0;
-    const avgWordsPerMinute = 150; // Average speaking rate
-
-    sentences.forEach((sentence, index) => {
-      const words = sentence.split(/\s+/).length;
-      const duration = (words / avgWordsPerMinute) * 60; // Convert to seconds
-
-      segments.push({
-        id: `segment-${index}`,
-        text: sentence.trim(),
-        start: currentTime,
-        end: currentTime + duration,
-        confidence: 0.95,
-      });
-
-      currentTime += duration;
-    });
-
-    return segments;
   };
 
   // Handle action items update
@@ -203,7 +137,7 @@ export default function NotePage() {
             <audio controls className="w-full" src={note.storageUrl}>
               Your browser does not support the audio element.
             </audio>
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-4">
               <a
                 href={note.storageUrl}
                 download={note.fileName}
@@ -212,28 +146,22 @@ export default function NotePage() {
                 <Download className="h-4 w-4" />
                 Download Audio
               </a>
-              {!note.transcript && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleProcess}
-                  disabled={processing}
-                  isLoading={processing}
-                >
-                  <Play className="h-4 w-4" />
-                  {processing ? 'Processing...' : 'Generate Transcript'}
-                </Button>
-              )}
             </div>
           </div>
 
-          {/* Transcript */}
-          {note.transcript && (
+          {/* Completed Transcription Section */}
+          {note.transcript && !note.markdownAnalysis && (
             <div className="card-lg mb-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Transcript</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Completed Transcription</h2>
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="text-sm font-medium">Transcription Complete</span>
+                </div>
+              </div>
 
               <TranscriptViewer
-                segments={note.transcriptSegments || parseTranscriptToSegments(note.transcript)}
+                segments={note.transcriptSegments || []}
                 audioUrl={note.storageUrl}
                 title={note.title}
                 noteId={note.id}
@@ -241,8 +169,27 @@ export default function NotePage() {
             </div>
           )}
 
+          {/* Markdown Analysis (for documents) */}
+          {note.markdownAnalysis && (
+            <div className="card-lg mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Document Analysis</h2>
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="text-sm font-medium">Analysis Complete</span>
+                </div>
+              </div>
+
+              <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-blockquote:text-gray-700 prose-blockquote:border-blue-500">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {note.markdownAnalysis}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+
           {/* Summary */}
-          {note.summary && (
+          {note.summary && !note.markdownAnalysis && (
             <div className="card-lg mb-6">
               <h2 className="text-base font-semibold text-gray-900 mb-4">AI Summary</h2>
               <p className="text-gray-700 text-sm leading-relaxed">{note.summary}</p>

@@ -251,14 +251,7 @@ Response: {
 
 ### For Users
 
-#### 1. View Transcript with Accurate Timestamps
-
-1. Upload audio file
-2. Wait for transcription (uses real AssemblyAI timestamps)
-3. Click any segment to jump to that exact moment in audio
-4. Audio player syncs perfectly with highlighted segment
-
-#### 2. Control Audio Playback
+#### 1. Control Audio Playback
 
 - **Play/Pause**: ▶️ Click to start/stop audio
 - **Stop**: ⏹️ Reset to beginning
@@ -267,7 +260,7 @@ Response: {
 - **Volume**: 🔊 Adjust 0-100%
 - **Seek**: Click anywhere on progress bar
 
-#### 3. Translate Transcript
+#### 2. Translate Transcript
 
 1. Click "🌍 Translate" button
 2. Select desired language from dropdown
@@ -275,7 +268,7 @@ Response: {
 4. View translated text in real-time
 5. Click "← Show Original" to switch back
 
-#### 4. Export Translated Transcript
+#### 3. Export Translated Transcript
 
 1. Translate to desired language (optional)
 2. Click "Export Transcript" button
@@ -304,14 +297,6 @@ Response: {
 ---
 
 ## 🎯 Testing Checklist
-
-### Timestamp Accuracy
-
-- [ ] Upload audio file and transcribe
-- [ ] Click on any transcript segment
-- [ ] Verify audio jumps to exact timestamp
-- [ ] Check that highlighted segment matches audio
-- [ ] Test with different speakers and pauses
 
 ### Audio Controls
 
@@ -350,12 +335,6 @@ Response: {
 - **Single segment**: ~100ms
 - **Full transcript (50 segments)**: ~3-5 seconds
 - **Network dependent**: LibreTranslate API response time
-
-### Accuracy Improvements
-
-- **Before**: Estimated timestamps (±2-5 seconds drift)
-- **After**: AssemblyAI utterances (±0.1 second accuracy)
-- **Improvement**: 95%+ more accurate
 
 ### Audio Sync
 
@@ -410,10 +389,9 @@ vercel --prod
 
 ### What Was Fixed
 
-1. ✅ Timestamp accuracy (now uses real AssemblyAI utterances)
-2. ✅ Audio controls (full-featured player with play/pause/speed/volume)
-3. ✅ Translation service (LibreTranslate - 100% FREE, 20+ languages)
-4. ✅ Export with translation (TXT/SRT/PDF/DOCX in any language)
+1. ✅ Audio controls (full-featured player with play/pause/speed/volume)
+2. ✅ Translation service (LibreTranslate - 100% FREE, 20+ languages)
+3. ✅ Export with translation (TXT/SRT/PDF/DOCX in any language)
 
 ### What Was Added
 
@@ -428,7 +406,6 @@ vercel --prod
 
 ### User Benefits
 
-- ⚡ **Accurate timestamps** - Jump to exact moment in audio
 - 🎮 **Full audio control** - Play/pause/speed/volume/seek
 - 🌍 **20+ languages** - Translate in real-time
 - 📄 **Export anywhere** - All formats support translations
