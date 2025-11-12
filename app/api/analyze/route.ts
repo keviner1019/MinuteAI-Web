@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     console.log('Starting AI analysis for note:', noteId);
     console.log('File type:', fileType);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Different prompts based on file type
     const isAudio = fileType.includes('audio') || fileType.includes('video');
