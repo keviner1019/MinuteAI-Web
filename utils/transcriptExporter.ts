@@ -49,51 +49,7 @@ export async function exportToTXT(
 }
 
 /**
- * Export transcript to SRT subtitle format
- */
-export async function exportToSRT(
-  segments: TranscriptSegment[],
-  title: string,
-  originalSegments?: TranscriptSegment[],
-  language?: string
-): Promise<void> {
-  const isBilingual = originalSegments && originalSegments.length > 0 && language !== 'Original';
-
-  let content = '';
-
-  if (isBilingual) {
-    // Bilingual SRT: Show translated and original on separate lines
-    content = segments
-      .map((segment, index) => {
-        const startTime = formatSRTTime(segment.start);
-        const endTime = formatSRTTime(segment.end);
-        const speaker = segment.speaker ? `[${segment.speaker}] ` : '';
-        const original = originalSegments[index]?.text || '';
-
-        return `${index + 1}\n${startTime} --> ${endTime}\n${speaker}${
-          segment.text
-        }\n[Original] ${original}\n`;
-      })
-      .join('\n');
-  } else {
-    // Single language SRT
-    content = segments
-      .map((segment, index) => {
-        const startTime = formatSRTTime(segment.start);
-        const endTime = formatSRTTime(segment.end);
-        const speaker = segment.speaker ? `[${segment.speaker}] ` : '';
-
-        return `${index + 1}\n${startTime} --> ${endTime}\n${speaker}${segment.text}\n`;
-      })
-      .join('\n');
-  }
-
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  saveAs(blob, `${sanitizeFilename(title)}.srt`);
-}
-
-/**
- * Export transcript to PDF format
+ * Export transcript to PDF format with Unicode support
  */
 export async function exportToPDF(
   segments: TranscriptSegment[],
@@ -101,111 +57,127 @@ export async function exportToPDF(
   originalSegments?: TranscriptSegment[],
   language?: string
 ): Promise<void> {
-  const pdf = new jsPDF();
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    putOnlyUsedFonts: true,
+    compress: true,
+  });
+
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 20;
   const lineHeight = 7;
+  const maxWidth = pageWidth - 2 * margin;
   let yPosition = margin;
 
   const isBilingual = originalSegments && originalSegments.length > 0 && language !== 'Original';
 
-  // Title
-  pdf.setFontSize(18);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(title, margin, yPosition);
-  yPosition += lineHeight * 2;
+  // Helper function to add text with proper Unicode handling
+  const addText = (
+    text: string,
+    x: number,
+    y: number,
+    options: { maxWidth?: number; align?: 'left' | 'center' | 'right' } = {}
+  ) => {
+    const textWidth = options.maxWidth || maxWidth;
+    // Split text to handle line breaks properly
+    const lines = pdf.splitTextToSize(text, textWidth);
 
-  // Timestamp
+    lines.forEach((line: string, index: number) => {
+      if (y + index * lineHeight > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+      pdf.text(line, x, y + index * lineHeight, {
+        align: options.align || 'left',
+        maxWidth: textWidth,
+      });
+    });
+
+    return y + lines.length * lineHeight;
+  };
+
+  // Title
+  pdf.setFontSize(20);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(0, 0, 0);
+  yPosition = addText(title, margin, yPosition);
+  yPosition += lineHeight;
+
+  // Metadata
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(128, 128, 128);
-  pdf.text(`Generated on ${new Date().toLocaleDateString()}`, margin, yPosition);
-  yPosition += lineHeight;
+  const dateText = `Generated on ${new Date().toLocaleDateString()}`;
+  yPosition = addText(dateText, margin, yPosition);
 
   if (isBilingual) {
-    pdf.text(`Bilingual: ${language} with Original`, margin, yPosition);
-    yPosition += lineHeight * 2;
-  } else {
-    yPosition += lineHeight;
+    yPosition = addText(`Bilingual: ${language} with Original`, margin, yPosition);
   }
+  yPosition += lineHeight * 1.5;
 
-  // Reset text color
+  // Reset color for content
   pdf.setTextColor(0, 0, 0);
-
-  // Transcript content
   pdf.setFontSize(11);
 
+  // Process segments
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
 
     // Check if we need a new page
-    if (yPosition > pageHeight - margin - 30) {
+    if (yPosition > pageHeight - margin - 40) {
       pdf.addPage();
       yPosition = margin;
     }
 
-    // Timestamp and speaker (bold)
+    // Timestamp and speaker
     const timestamp = `[${formatTime(segment.start)}]`;
     const speaker = segment.speaker ? ` ${segment.speaker}:` : '';
     const header = timestamp + speaker;
 
     pdf.setFont('helvetica', 'bold');
-    pdf.text(header, margin, yPosition);
-    yPosition += lineHeight;
+    pdf.setTextColor(0, 0, 0);
+    yPosition = addText(header, margin, yPosition);
+    yPosition += lineHeight * 0.3;
 
-    // Translated text (blue for bilingual)
+    // Translated text label (if bilingual)
     if (isBilingual) {
-      pdf.setTextColor(37, 99, 235); // Blue
       pdf.setFont('helvetica', 'bold');
-      const translatedLabel = pdf.splitTextToSize(`[${language}]`, pageWidth - 2 * margin);
-      pdf.text(translatedLabel, margin, yPosition);
-      yPosition += lineHeight;
+      pdf.setFontSize(9);
+      pdf.setTextColor(37, 99, 235); // Blue
+      yPosition = addText(`[${language}]`, margin, yPosition);
+      pdf.setFontSize(11);
     }
 
+    // Main text content
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(0, 0, 0);
-    const textLines = pdf.splitTextToSize(segment.text, pageWidth - 2 * margin);
+    yPosition = addText(segment.text, margin, yPosition);
+    yPosition += lineHeight * 0.5;
 
-    for (const line of textLines) {
-      if (yPosition > pageHeight - margin - 20) {
-        pdf.addPage();
-        yPosition = margin;
-      }
-      pdf.text(line, margin, yPosition);
-      yPosition += lineHeight;
-    }
-
-    // Original text if bilingual
+    // Original text (if bilingual)
     if (isBilingual && originalSegments[i]) {
-      yPosition += lineHeight * 0.3;
-
-      if (yPosition > pageHeight - margin - 20) {
+      if (yPosition > pageHeight - margin - 30) {
         pdf.addPage();
         yPosition = margin;
       }
 
-      pdf.setTextColor(100, 100, 100); // Gray
       pdf.setFont('helvetica', 'italic');
-      pdf.text('[Original]', margin, yPosition);
-      yPosition += lineHeight;
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 100, 100); // Gray
+      yPosition = addText('[Original]', margin, yPosition);
 
       pdf.setFont('helvetica', 'normal');
-      const originalLines = pdf.splitTextToSize(originalSegments[i].text, pageWidth - 2 * margin);
+      pdf.setFontSize(10);
+      yPosition = addText(originalSegments[i].text, margin, yPosition);
 
-      for (const line of originalLines) {
-        if (yPosition > pageHeight - margin - 20) {
-          pdf.addPage();
-          yPosition = margin;
-        }
-        pdf.text(line, margin, yPosition);
-        yPosition += lineHeight;
-      }
-
-      pdf.setTextColor(0, 0, 0); // Reset color
+      pdf.setFontSize(11);
+      pdf.setTextColor(0, 0, 0);
     }
 
-    yPosition += lineHeight * 0.8; // Add spacing between segments
+    yPosition += lineHeight;
   }
 
   pdf.save(`${sanitizeFilename(title)}.pdf`);

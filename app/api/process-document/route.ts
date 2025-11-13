@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+const pdfParse = require('pdf-parse');
+import mammoth from 'mammoth';
 
 export async function POST(request: NextRequest) {
   let noteId: string = '';
@@ -27,29 +29,89 @@ export async function POST(request: NextRequest) {
 
     // Handle different file types
     if (fileType === 'application/pdf') {
-      // For PDF, we'll extract text (you may need pdf-parse or similar library)
-      // For now, we'll create a placeholder
-      extractedContent = `PDF Document: ${fileName}\n\nThis is a PDF document. Content extraction requires additional processing.`;
-    } else if (fileType.includes('text/plain')) {
+      // Extract PDF content
+      try {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const pdfData = await pdfParse(buffer);
+        extractedContent = pdfData.text;
+
+        if (!extractedContent || extractedContent.trim().length === 0) {
+          throw new Error('PDF appears to be empty or contains only images');
+        }
+
+        console.log('PDF extracted successfully, length:', extractedContent.length);
+      } catch (pdfError) {
+        console.error('PDF extraction error:', pdfError);
+        throw new Error(
+          `Failed to extract PDF content: ${
+            pdfError instanceof Error ? pdfError.message : 'Unknown error'
+          }`
+        );
+      }
+    } else if (fileType === 'text/plain') {
       // Plain text file
       extractedContent = await response.text();
+      console.log('Text file read successfully, length:', extractedContent.length);
     } else if (
-      fileType.includes('word') ||
-      fileType.includes('document') ||
-      fileType.includes('presentation') ||
-      fileType.includes('spreadsheet')
+      fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      fileType === 'application/msword'
     ) {
-      // For Office documents, we'll create a placeholder
-      // In production, you'd use libraries like mammoth, officegen, etc.
-      extractedContent = `Office Document: ${fileName}\n\nThis is a ${
-        fileType.includes('word')
-          ? 'Word'
-          : fileType.includes('presentation')
-          ? 'PowerPoint'
-          : 'Excel'
-      } document. Content extraction requires additional processing.`;
+      // Extract Word document content
+      try {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const result = await mammoth.extractRawText({ buffer });
+        extractedContent = result.value;
+
+        if (!extractedContent || extractedContent.trim().length === 0) {
+          throw new Error('Word document appears to be empty');
+        }
+
+        console.log('Word document extracted successfully, length:', extractedContent.length);
+      } catch (docError) {
+        console.error('Word document extraction error:', docError);
+        throw new Error(
+          `Failed to extract Word document content: ${
+            docError instanceof Error ? docError.message : 'Unknown error'
+          }`
+        );
+      }
+    } else if (
+      fileType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+      fileType === 'application/vnd.ms-powerpoint'
+    ) {
+      // PowerPoint - extract what we can
+      try {
+        const text = await response.text();
+        // Basic extraction - try to get text content
+        extractedContent = text
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (!extractedContent || extractedContent.length < 100) {
+          extractedContent = `PowerPoint Presentation: ${fileName}\n\nThis PowerPoint file has been uploaded. For best results with presentations, please export to PDF first and upload the PDF version for detailed analysis.`;
+        }
+
+        console.log('PowerPoint processed, length:', extractedContent.length);
+      } catch (pptError) {
+        console.error('PowerPoint extraction error:', pptError);
+        extractedContent = `PowerPoint Presentation: ${fileName}\n\nThis PowerPoint file has been uploaded. For best results with presentations, please export to PDF first and upload the PDF version for detailed analysis.`;
+      }
+    } else if (
+      fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      fileType === 'application/vnd.ms-excel'
+    ) {
+      // Excel files
+      extractedContent = `Excel Spreadsheet: ${fileName}\n\nThis is an Excel spreadsheet. For best results with spreadsheet data, please export to PDF or convert to plain text (CSV/TXT) format before uploading for detailed analysis.`;
     } else {
-      extractedContent = `Document: ${fileName}\n\nUnsupported file type for automatic content extraction.`;
+      extractedContent = `Document: ${fileName}\n\nThis file type (${fileType}) is not fully supported for automatic content extraction. For best results, please convert to PDF or TXT format.`;
+    }
+
+    // Validate we have meaningful content
+    if (!extractedContent || extractedContent.trim().length < 10) {
+      throw new Error('No meaningful content could be extracted from the document');
     }
 
     console.log('Content extracted, length:', extractedContent.length);
@@ -82,6 +144,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Document processing error:', error);
+
+    // Try to update note with error information
+    if (noteId) {
+      try {
+        await supabaseAdmin
+          .from('notes')
+          .update({
+            transcript: `Error processing document: ${error.message}\n\nPlease try converting the document to PDF or TXT format for better results.`,
+            duration: 0,
+          })
+          .eq('id', noteId);
+      } catch (updateError) {
+        console.error('Failed to update note with error:', updateError);
+      }
+    }
+
     return NextResponse.json(
       { error: error.message || 'Document processing failed' },
       { status: 500 }

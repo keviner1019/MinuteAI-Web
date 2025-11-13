@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, FileText, FileType, FileImage, Loader2 } from 'lucide-react';
+import { Download, FileText, FileImage, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { TranscriptSegment } from '@/types';
-import { exportToTXT, exportToSRT, exportToPDF, exportToDOCX } from '@/utils/transcriptExporter';
+import { exportToTXT, exportToPDF, exportToDOCX } from '@/utils/transcriptExporter';
 
 interface TranscriptExportProps {
   segments: TranscriptSegment[];
@@ -13,7 +13,7 @@ interface TranscriptExportProps {
   originalSegments?: TranscriptSegment[]; // For bilingual export
 }
 
-type ExportFormat = 'txt' | 'srt' | 'pdf' | 'docx';
+type ExportFormat = 'txt' | 'pdf' | 'docx';
 
 interface ExportOption {
   format: ExportFormat;
@@ -28,12 +28,6 @@ const exportOptions: ExportOption[] = [
     label: 'Plain Text',
     description: 'Simple text file with timestamps',
     icon: FileText,
-  },
-  {
-    format: 'srt',
-    label: 'SRT Subtitles',
-    description: 'Subtitle format for video players',
-    icon: FileType,
   },
   {
     format: 'pdf',
@@ -81,9 +75,6 @@ export default function TranscriptExport({
       switch (format) {
         case 'txt':
           await exportToTXT(segmentsToExport, exportTitle, origSegments, language);
-          break;
-        case 'srt':
-          await exportToSRT(segmentsToExport, exportTitle, origSegments, language);
           break;
         case 'pdf':
           await exportToPDF(segmentsToExport, exportTitle, origSegments, language);
