@@ -1,5 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Fallback translation using Google Translate (free, no API key needed)
+async function translateWithGoogleFallback(
+  text: string,
+  targetLanguage: string
+): Promise<NextResponse> {
+  try {
+    // Google Translate language code mapping
+    const googleLangMap: Record<string, string> = {
+      ms: 'ms', // Malay
+      fil: 'tl', // Filipino (Tagalog)
+      bn: 'bn', // Bengali
+      ta: 'ta', // Tamil
+      te: 'te', // Telugu
+      ur: 'ur', // Urdu
+      zh: 'zh-CN', // Chinese Simplified
+      pt: 'pt', // Portuguese
+    };
+
+    const googleTargetLang = googleLangMap[targetLanguage.toLowerCase()] || targetLanguage;
+
+    // Use Google Translate API (via third-party free endpoint)
+    const response = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${googleTargetLang}&dt=t&q=${encodeURIComponent(
+        text
+      )}`,
+      {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Google Translate request failed');
+    }
+
+    const data = await response.json();
+
+    // Parse Google Translate response format
+    let translatedText = '';
+    if (data && data[0]) {
+      translatedText = data[0].map((item: any) => item[0]).join('');
+    }
+
+    if (!translatedText) {
+      throw new Error('No translation returned');
+    }
+
+    return NextResponse.json({
+      success: true,
+      translatedText,
+      detectedLanguage: data[2] || 'unknown',
+      provider: 'google',
+    });
+  } catch (error) {
+    console.error('Google Translate fallback error:', error);
+    return NextResponse.json({
+      success: false,
+      translatedText: text,
+      error: 'Translation failed. This language might not be supported.',
+      provider: 'google',
+    });
+  }
+}
+
 // Using DeepL API for high-quality translation
 export async function POST(request: NextRequest) {
   try {
@@ -63,8 +129,7 @@ export async function POST(request: NextRequest) {
       return await translateWithGoogleFallback(text, targetLanguage);
     }
 
-    const deeplTargetLang =
-      deeplLanguageMap[targetLangLower] || targetLanguage.toUpperCase();
+    const deeplTargetLang = deeplLanguageMap[targetLangLower] || targetLanguage.toUpperCase();
 
     // Call DeepL API with timeout
     const controller = new AbortController();

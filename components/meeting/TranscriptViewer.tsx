@@ -146,7 +146,12 @@ export default function TranscriptViewer({
             text={segments.map((s) => s.text).join(' ')}
             onTranslate={handleTranslate}
           />
-          <TranscriptExport segments={displaySegments} title={title} language={displayLanguage} />
+          <TranscriptExport
+            segments={displaySegments}
+            title={title}
+            language={displayLanguage}
+            originalSegments={hasTranslation ? segments : undefined}
+          />
         </div>
       </div>
 

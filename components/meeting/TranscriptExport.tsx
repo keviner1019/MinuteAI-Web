@@ -10,6 +10,7 @@ interface TranscriptExportProps {
   segments: TranscriptSegment[];
   title: string;
   language?: string;
+  originalSegments?: TranscriptSegment[]; // For bilingual export
 }
 
 type ExportFormat = 'txt' | 'srt' | 'pdf' | 'docx';
@@ -52,12 +53,17 @@ export default function TranscriptExport({
   segments,
   title,
   language = 'Original',
+  originalSegments,
 }: TranscriptExportProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [includeBilingual, setIncludeBilingual] = useState(false);
 
   // Add language info to title if translated
   const exportTitle = language !== 'Original' ? `${title} (${language})` : title;
+
+  // Check if we have translation (language is not Original and we have original segments)
+  const hasTranslation = language !== 'Original' && originalSegments && originalSegments.length > 0;
 
   const handleExport = async (format: ExportFormat) => {
     if (segments.length === 0) {
@@ -68,18 +74,22 @@ export default function TranscriptExport({
     setExporting(format);
 
     try {
+      // Determine which segments to export
+      const segmentsToExport = segments;
+      const origSegments = includeBilingual && hasTranslation ? originalSegments : undefined;
+
       switch (format) {
         case 'txt':
-          await exportToTXT(segments, exportTitle);
+          await exportToTXT(segmentsToExport, exportTitle, origSegments, language);
           break;
         case 'srt':
-          await exportToSRT(segments, exportTitle);
+          await exportToSRT(segmentsToExport, exportTitle, origSegments, language);
           break;
         case 'pdf':
-          await exportToPDF(segments, exportTitle);
+          await exportToPDF(segmentsToExport, exportTitle, origSegments, language);
           break;
         case 'docx':
-          await exportToDOCX(segments, exportTitle);
+          await exportToDOCX(segmentsToExport, exportTitle, origSegments, language);
           break;
       }
 
@@ -116,6 +126,28 @@ export default function TranscriptExport({
             <div className="p-2 border-b border-gray-200 bg-gray-50">
               <p className="text-xs font-medium text-gray-700">Export Format</p>
             </div>
+
+            {/* Bilingual Option */}
+            {hasTranslation && (
+              <div className="p-3 border-b border-gray-200 bg-blue-50">
+                <label className="flex items-start gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={includeBilingual}
+                    onChange={(e) => setIncludeBilingual(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700">
+                      Include Original Text
+                    </p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Export with both {language} and original text
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             <div className="p-1">
               {exportOptions.map((option) => {
