@@ -153,28 +153,31 @@ export default function TranscriptViewer({
       {/* Transcript Content - Simple Display */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 max-h-[600px] overflow-y-auto">
         <div className="prose prose-sm max-w-none">
-          {hasTranslation && showBothVersions ? (
-            // Show both versions side by side
-            displaySegments.map((segment, index) => (
-              <div key={segment.id || index} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="mb-3">
-                  <p className="text-xs font-semibold text-blue-600 uppercase mb-2">Translated ({displayLanguage})</p>
-                  <p className="text-gray-900 leading-relaxed font-medium">{segment.text}</p>
+          {hasTranslation && showBothVersions
+            ? // Show both versions side by side
+              displaySegments.map((segment, index) => (
+                <div
+                  key={segment.id || index}
+                  className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                >
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-blue-600 uppercase mb-2">
+                      Translated ({displayLanguage})
+                    </p>
+                    <p className="text-gray-900 leading-relaxed font-medium">{segment.text}</p>
+                  </div>
+                  <div className="border-t border-gray-300 pt-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Original</p>
+                    <p className="text-gray-600 leading-relaxed">{segments[index]?.text}</p>
+                  </div>
                 </div>
-                <div className="border-t border-gray-300 pt-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Original</p>
-                  <p className="text-gray-600 leading-relaxed">{segments[index]?.text}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            // Show single version
-            displaySegments.map((segment, index) => (
-              <p key={segment.id || index} className="text-gray-800 leading-relaxed mb-4">
-                {segment.text}
-              </p>
-            ))
-          )}
+              ))
+            : // Show single version
+              displaySegments.map((segment, index) => (
+                <p key={segment.id || index} className="text-gray-800 leading-relaxed mb-4">
+                  {segment.text}
+                </p>
+              ))}
         </div>
       </div>
     </div>

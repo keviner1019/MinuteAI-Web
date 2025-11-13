@@ -23,7 +23,10 @@ export default function UploadTasksPanel() {
 
       <div className="space-y-2 max-h-40 overflow-y-auto">
         {tasks.map((task) => (
-          <div key={task.id} className="flex items-center justify-between gap-3 p-2 bg-white rounded-md border">
+          <div
+            key={task.id}
+            className="flex items-center justify-between gap-3 p-2 bg-white rounded-md border"
+          >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 {task.status === 'completed' ? (

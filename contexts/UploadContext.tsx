@@ -26,9 +26,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<UploadTask[]>([]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<UploadTask>) => {
-    setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, ...updates } : task))
-    );
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, ...updates } : task)));
   }, []);
 
   const addTask = useCallback((task: UploadTask) => {

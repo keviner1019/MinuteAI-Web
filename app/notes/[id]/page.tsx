@@ -194,7 +194,8 @@ export default function NotePage() {
                 </div>
               </div>
 
-              <div className="prose prose-base max-w-none 
+              <div
+                className="prose prose-base max-w-none 
                 prose-headings:text-gray-900 prose-headings:font-bold
                 prose-h1:text-3xl prose-h1:mb-4 prose-h1:mt-6 prose-h1:border-b prose-h1:border-gray-200 prose-h1:pb-2
                 prose-h2:text-2xl prose-h2:mb-3 prose-h2:mt-5 prose-h2:text-blue-900
@@ -213,7 +214,8 @@ export default function NotePage() {
                 prose-table:border-collapse prose-table:w-full
                 prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:p-2 prose-th:text-left prose-th:font-semibold prose-th:text-gray-900
                 prose-td:border prose-td:border-gray-300 prose-td:p-2 prose-td:text-gray-800
-                prose-hr:border-gray-300 prose-hr:my-6">
+                prose-hr:border-gray-300 prose-hr:my-6"
+              >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.markdownAnalysis}</ReactMarkdown>
               </div>
             </div>
