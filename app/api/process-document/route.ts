@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-const pdfParse = require('pdf-parse');
+import PDFParser from 'pdf2json';
 import mammoth from 'mammoth';
 
 export async function POST(request: NextRequest) {
@@ -29,12 +29,43 @@ export async function POST(request: NextRequest) {
 
     // Handle different file types
     if (fileType === 'application/pdf') {
-      // Extract PDF content
+      // Extract PDF content using pdf2json (serverless-friendly, no canvas dependencies)
       try {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const pdfData = await pdfParse(buffer);
-        extractedContent = pdfData.text;
+
+        extractedContent = await new Promise<string>((resolve, reject) => {
+          const pdfParser = new (PDFParser as any)(null, 1);
+
+          pdfParser.on('pdfParser_dataError', (errData: any) => {
+            reject(new Error(errData.parserError));
+          });
+
+          pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+            try {
+              // Extract text from all pages
+              const textParts: string[] = [];
+
+              if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
+                for (const page of pdfData.Pages) {
+                  if (page.Texts && Array.isArray(page.Texts)) {
+                    const pageText = page.Texts.map((text: any) => {
+                      return text.R.map((r: any) => decodeURIComponent(r.T)).join(' ');
+                    }).join(' ');
+                    textParts.push(pageText);
+                  }
+                }
+              }
+
+              const fullText = textParts.join('\n\n').trim();
+              resolve(fullText);
+            } catch (error) {
+              reject(error);
+            }
+          });
+
+          pdfParser.parseBuffer(buffer);
+        });
 
         if (!extractedContent || extractedContent.trim().length === 0) {
           throw new Error('PDF appears to be empty or contains only images');
