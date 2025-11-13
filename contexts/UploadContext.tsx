@@ -11,11 +11,12 @@ export interface UploadTask {
   progress: string;
   noteId?: string;
   error?: string;
+  showNotification?: boolean;
 }
 
 interface UploadContextType {
   tasks: UploadTask[];
-  startUpload: (files: File[], title: string, userId: string) => Promise<void>;
+  startUpload: (files: File[], title: string, userId: string, onComplete?: () => void) => Promise<void>;
   clearTask: (taskId: string) => void;
   clearAllCompleted: () => void;
 }
@@ -45,7 +46,8 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     file: File,
     fileTitle: string,
     taskId: string,
-    userId: string
+    userId: string,
+    onComplete?: () => void
   ): Promise<void> => {
     try {
       // Step 1: Upload file to storage
@@ -134,23 +136,36 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Mark as completed
+      // Mark as completed with notification flag
       updateTask(taskId, {
         status: 'completed',
-        progress: 'Processing complete!',
+        progress: '✓ Processing complete!',
+        showNotification: true,
       });
+
+      // Call the onComplete callback to refresh notes
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete();
+        }, 500);
+      }
+
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => {
+        clearTask(taskId);
+      }, 5000);
     } catch (error: any) {
       console.error(`Error processing file ${file.name}:`, error);
       updateTask(taskId, {
         status: 'error',
-        progress: 'Processing failed',
+        progress: '✗ Processing failed',
         error: error.message || 'Unknown error',
       });
     }
   };
 
   const startUpload = useCallback(
-    async (files: File[], title: string, userId: string) => {
+    async (files: File[], title: string, userId: string, onComplete?: () => void) => {
       // Create tasks for all files
       const newTasks = files.map((file, index) => ({
         id: `${Date.now()}-${index}`,
@@ -166,7 +181,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       newTasks.forEach((task, index) => {
         const fileTitle = files.length > 1 ? `${title} (${index + 1})` : title;
         // fire-and-forget
-        void processFile(files[index], fileTitle, task.id, userId);
+        void processFile(files[index], fileTitle, task.id, userId, onComplete);
       });
     },
     [addTask, updateTask]

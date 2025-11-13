@@ -21,8 +21,6 @@ export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const { notes, loading, error, refreshNotes } = useNotes(user?.id || null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [processingStatus, setProcessingStatus] = useState<string>('');
-  const [showProcessingToast, setShowProcessingToast] = useState(false);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [creatingMeeting, setCreatingMeeting] = useState(false);
@@ -126,28 +124,13 @@ export default function DashboardPage() {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // Use upload context to queue background upload and return immediately
-      setProcessingStatus('Starting background upload...');
-      setShowProcessingToast(true);
-
-      await uploadCtx.startUpload(files, title, user.id);
-
-      // Refresh notes so new ones appear eventually
-      await refreshNotes();
-
-      // Show brief message
-      setProcessingStatus('✓ Upload tasks queued');
-      setTimeout(() => {
-        setShowProcessingToast(false);
-        setProcessingStatus('');
-      }, 2000);
+      // Use upload context to queue background upload and pass refresh callback
+      await uploadCtx.startUpload(files, title, user.id, () => {
+        // Auto-refresh notes when each upload completes
+        refreshNotes();
+      });
     } catch (error) {
       console.error('Background upload error:', error);
-      setProcessingStatus('✗ Failed to queue upload');
-      setTimeout(() => {
-        setShowProcessingToast(false);
-        setProcessingStatus('');
-      }, 4000);
       throw error;
     }
   };
@@ -263,7 +246,7 @@ export default function DashboardPage() {
                       placeholder="Search notes by title, content, or topics..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <svg
                       className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -291,7 +274,7 @@ export default function DashboardPage() {
                         onChange={(e) =>
                           setFilterType(e.target.value as 'all' | 'completed' | 'pending')
                         }
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="all">All Notes</option>
                         <option value="completed">Completed</option>
@@ -306,7 +289,7 @@ export default function DashboardPage() {
                         title="Sort notes"
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'title')}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="newest">Newest First</option>
                         <option value="oldest">Oldest First</option>
@@ -453,75 +436,8 @@ export default function DashboardPage() {
           onUpload={handleUpload}
         />
 
-        {/* Processing Status Toast */}
-        {showProcessingToast && (
-          <div className="fixed bottom-8 right-8 z-50 animate-in slide-in-from-bottom-5">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 min-w-[320px] max-w-md">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0">
-                  {processingStatus.startsWith('✓') ? (
-                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                      <svg
-                        className="h-5 w-5 text-green-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-                  ) : processingStatus.startsWith('✗') ? (
-                    <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                      <svg
-                        className="h-5 w-5 text-red-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </div>
-                  ) : (
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm font-medium ${
-                      processingStatus.startsWith('✓')
-                        ? 'text-green-900'
-                        : processingStatus.startsWith('✗')
-                        ? 'text-red-900'
-                        : 'text-gray-900'
-                    }`}
-                  >
-                    {processingStatus.startsWith('✓') || processingStatus.startsWith('✗')
-                      ? processingStatus
-                      : 'Processing Audio'}
-                  </p>
-                  {!processingStatus.startsWith('✓') && !processingStatus.startsWith('✗') && (
-                    <p className="text-xs text-gray-600 mt-1">{processingStatus}</p>
-                  )}
-                  {/* Show background upload tasks from UploadContext */}
-                  <div className="mt-2">
-                    {/* Dynamically show a small upload tasks panel if UploadContext is available */}
-                    <UploadTasksPanel />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Persistent Upload Tasks Panel */}
+        <UploadTasksPanel />
       </div>
     </ProtectedRoute>
   );

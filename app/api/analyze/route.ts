@@ -45,13 +45,23 @@ export async function POST(request: NextRequest) {
       prompt = `
 Analyze the following meeting transcript and provide:
 1. A concise summary (2-3 sentences)
-2. A list of action items (if any)
+2. A list of action items (if any) - Be SPECIFIC and ACTIONABLE. Each action item should:
+   - Start with a clear action verb (e.g., "Schedule", "Send", "Complete", "Review", "Follow up")
+   - Include WHO should do it (if mentioned)
+   - Include WHAT needs to be done (specific task)
+   - Include WHEN if a deadline was mentioned
+   - Be clear enough that someone can act on it immediately
+   Examples: 
+   - "John to send project proposal to Sarah by Friday"
+   - "Schedule follow-up meeting with marketing team next week"
+   - "Review and approve budget document before Monday"
+   NOT vague items like: "Follow up on project" or "Send email"
 3. Key topics discussed (3-5 topics)
 
 Format your response as JSON with this exact structure:
 {
   "summary": "your summary here",
-  "actionItems": ["action 1", "action 2", ...],
+  "actionItems": ["specific action 1 with owner and deadline", "specific action 2", ...],
   "keyTopics": ["topic 1", "topic 2", ...]
 }
 
@@ -65,7 +75,17 @@ Analyze the following document content and provide a comprehensive analysis in b
 1. **Executive Summary**: Provide a concise 2-3 sentence overview
 2. **Key Points**: Extract and list the most important points (bullet points)
 3. **Main Topics**: Identify 3-5 main topics or themes
-4. **Action Items**: List any action items, tasks, or recommendations
+4. **Action Items**: List any action items, tasks, or recommendations - Be SPECIFIC and ACTIONABLE. Each action item should:
+   - Start with a clear action verb (e.g., "Complete", "Review", "Implement", "Research", "Prepare")
+   - Include WHO should do it (if mentioned or inferable)
+   - Include WHAT needs to be done (specific task)
+   - Include WHEN if a deadline is mentioned or suggested
+   - Be clear enough that someone can act on it immediately
+   Examples:
+   - "Complete security audit of authentication system by end of Q2"
+   - "Team lead to review code quality standards and update documentation"
+   - "Implement new customer feedback system before product launch"
+   NOT vague items like: "Improve system" or "Update docs"
 5. **Important Details**: Highlight any important numbers, dates, names, or specific details
 6. **Conclusions**: Summarize any conclusions or outcomes
 
@@ -73,7 +93,7 @@ Format your response as JSON with this structure:
 {
   "summary": "executive summary in markdown",
   "markdownAnalysis": "full analysis in beautiful markdown with headers, bullet points, bold text, etc.",
-  "actionItems": ["action 1", "action 2", ...],
+  "actionItems": ["specific action 1 with owner and deadline", "specific action 2", ...],
   "keyTopics": ["topic 1", "topic 2", ...]
 }
 
@@ -93,13 +113,13 @@ ${transcript}
       prompt = `
 Analyze the following content and provide:
 1. A concise summary (2-3 sentences)
-2. A list of action items (if any)
+2. A list of specific, actionable items (if any) - Each should start with an action verb and be clear enough to execute
 3. Key topics (3-5 topics)
 
 Format your response as JSON with this exact structure:
 {
   "summary": "your summary here",
-  "actionItems": ["action 1", "action 2", ...],
+  "actionItems": ["specific action 1", "specific action 2", ...],
   "keyTopics": ["topic 1", "topic 2", ...]
 }
 
