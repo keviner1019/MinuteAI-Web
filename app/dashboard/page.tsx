@@ -7,12 +7,15 @@ import { useNotes } from '@/hooks/useNotes';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import NoteCard from '@/components/ui/NoteCard';
 import UploadModal from '@/components/ui/UploadModal';
+import { UploadProvider } from '@/contexts/UploadContext';
+import UploadTasksPanel from '@/components/ui/UploadTasksPanel';
 import Button from '@/components/ui/Button';
 import { MeetingCard } from '@/components/ui/MeetingCard';
 import { Plus, Loader2, FileAudio, Video } from 'lucide-react';
 import { uploadAudioFile } from '@/lib/supabase/storage';
 import { createNote } from '@/lib/supabase/database';
 import { createClient } from '@/lib/supabase/client';
+import { useUpload } from '@/contexts/UploadContext';
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
@@ -32,6 +35,7 @@ export default function DashboardPage() {
 
   const router = useRouter();
   const supabase = createClient();
+  const uploadCtx = useUpload();
 
   useEffect(() => {
     if (user) {
@@ -122,129 +126,28 @@ export default function DashboardPage() {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      setProcessingStatus('Uploading files...');
+      // Use upload context to queue background upload and return immediately
+      setProcessingStatus('Starting background upload...');
       setShowProcessingToast(true);
 
-      // Process each file
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileTitle = files.length > 1 ? `${title} (${i + 1})` : title;
+      await uploadCtx.startUpload(files, title, user.id);
 
-        setProcessingStatus(`Processing file ${i + 1} of ${files.length}...`);
-        console.log(`Processing file: ${file.name}`);
-
-        // Step 1: Upload file to Supabase Storage
-        setProcessingStatus(`Uploading ${file.name}...`);
-        const storageUrl = await uploadAudioFile(file, user.id);
-        console.log('Upload complete. URL:', storageUrl);
-
-        // Step 2: Create note document in Supabase Database
-        setProcessingStatus('Creating note...');
-        const newNote = await createNote({
-          userId: user.id,
-          title: fileTitle,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          storageUrl: storageUrl,
-        });
-        console.log('Note created successfully:', newNote.id);
-
-        // Step 3: Process based on file type
-        const isAudio = file.type.startsWith('audio/') || file.type.startsWith('video/');
-        const isDocument =
-          file.type.includes('pdf') ||
-          file.type.includes('document') ||
-          file.type.includes('word') ||
-          file.type.includes('presentation') ||
-          file.type.includes('powerpoint') ||
-          file.type.includes('spreadsheet') ||
-          file.type.includes('excel') ||
-          file.type.includes('text/plain');
-
-        let transcript = '';
-
-        if (isAudio) {
-          // Transcribe audio
-          setProcessingStatus('Transcribing audio... This may take a few minutes');
-          const transcribeResponse = await fetch('/api/transcribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ noteId: newNote.id, audioUrl: storageUrl }),
-          });
-
-          if (!transcribeResponse.ok) {
-            throw new Error('Transcription failed');
-          }
-
-          const transcriptData = await transcribeResponse.json();
-          transcript = transcriptData.transcript;
-          console.log('Transcription completed');
-        } else if (isDocument) {
-          // Process document
-          setProcessingStatus('Extracting content from document...');
-          const processDocResponse = await fetch('/api/process-document', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              noteId: newNote.id,
-              fileUrl: storageUrl,
-              fileType: file.type,
-              fileName: file.name,
-            }),
-          });
-
-          if (!processDocResponse.ok) {
-            throw new Error('Document processing failed');
-          }
-
-          const docData = await processDocResponse.json();
-          transcript = docData.content;
-          console.log('Document processing completed');
-        }
-
-        // Step 4: Generate AI analysis
-        if (transcript) {
-          setProcessingStatus('Generating AI analysis...');
-          const analyzeResponse = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              noteId: newNote.id,
-              transcript,
-              fileType: file.type,
-            }),
-          });
-
-          if (!analyzeResponse.ok) {
-            throw new Error('AI analysis failed');
-          }
-
-          console.log('AI analysis completed');
-        }
-      }
-
-      // All files processed!
-      setProcessingStatus('✓ All files processed successfully!');
-
-      // Auto-refresh notes list to show new uploads
+      // Refresh notes so new ones appear eventually
       await refreshNotes();
 
-      // Hide toast after 2 seconds
+      // Show brief message
+      setProcessingStatus('✓ Upload tasks queued');
       setTimeout(() => {
         setShowProcessingToast(false);
         setProcessingStatus('');
       }, 2000);
     } catch (error) {
-      console.error('Upload/Processing error:', error);
-      setProcessingStatus('✗ Processing failed. Please try again.');
-
-      // Hide error after 4 seconds
+      console.error('Background upload error:', error);
+      setProcessingStatus('✗ Failed to queue upload');
       setTimeout(() => {
         setShowProcessingToast(false);
         setProcessingStatus('');
       }, 4000);
-
       throw error;
     }
   };
@@ -383,6 +286,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-gray-700">Filter:</span>
                       <select
+                        title="Filter notes"
                         value={filterType}
                         onChange={(e) =>
                           setFilterType(e.target.value as 'all' | 'completed' | 'pending')
@@ -399,6 +303,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-gray-700">Sort:</span>
                       <select
+                        title="Sort notes"
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'title')}
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -607,6 +512,11 @@ export default function DashboardPage() {
                   {!processingStatus.startsWith('✓') && !processingStatus.startsWith('✗') && (
                     <p className="text-xs text-gray-600 mt-1">{processingStatus}</p>
                   )}
+                  {/* Show background upload tasks from UploadContext */}
+                  <div className="mt-2">
+                    {/* Dynamically show a small upload tasks panel if UploadContext is available */}
+                    <UploadTasksPanel />
+                  </div>
                 </div>
               </div>
             </div>

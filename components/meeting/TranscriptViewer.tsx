@@ -24,9 +24,11 @@ export default function TranscriptViewer({
   // Translation state
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptSegment[]>([]);
   const [displayLanguage, setDisplayLanguage] = useState<string>('Original');
+  const [showBothVersions, setShowBothVersions] = useState<boolean>(false);
 
   // Use translated segments if available, otherwise use original
   const displaySegments = translatedSegments.length > 0 ? translatedSegments : segments;
+  const hasTranslation = translatedSegments.length > 0 && displayLanguage !== 'Original';
 
   // Handle translation with caching
   const handleTranslate = async (translatedText: string, languageCode: string) => {
@@ -125,22 +127,54 @@ export default function TranscriptViewer({
   return (
     <div className="space-y-4">
       {/* Header with Translate and Export */}
-      <div className="flex items-center justify-end gap-2">
-        <TranscriptTranslator
-          text={segments.map((s) => s.text).join(' ')}
-          onTranslate={handleTranslate}
-        />
-        <TranscriptExport segments={displaySegments} title={title} language={displayLanguage} />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {hasTranslation && (
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:text-gray-900 transition-colors">
+              <input
+                type="checkbox"
+                checked={showBothVersions}
+                onChange={(e) => setShowBothVersions(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="font-medium">Show Original Text</span>
+            </label>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <TranscriptTranslator
+            text={segments.map((s) => s.text).join(' ')}
+            onTranslate={handleTranslate}
+          />
+          <TranscriptExport segments={displaySegments} title={title} language={displayLanguage} />
+        </div>
       </div>
 
       {/* Transcript Content - Simple Display */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 max-h-[600px] overflow-y-auto">
         <div className="prose prose-sm max-w-none">
-          {displaySegments.map((segment, index) => (
-            <p key={segment.id || index} className="text-gray-700 leading-relaxed mb-4">
-              {segment.text}
-            </p>
-          ))}
+          {hasTranslation && showBothVersions ? (
+            // Show both versions side by side
+            displaySegments.map((segment, index) => (
+              <div key={segment.id || index} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-blue-600 uppercase mb-2">Translated ({displayLanguage})</p>
+                  <p className="text-gray-900 leading-relaxed font-medium">{segment.text}</p>
+                </div>
+                <div className="border-t border-gray-300 pt-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Original</p>
+                  <p className="text-gray-600 leading-relaxed">{segments[index]?.text}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            // Show single version
+            displaySegments.map((segment, index) => (
+              <p key={segment.id || index} className="text-gray-800 leading-relaxed mb-4">
+                {segment.text}
+              </p>
+            ))
+          )}
         </div>
       </div>
     </div>

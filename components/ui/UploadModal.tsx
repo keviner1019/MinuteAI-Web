@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useContext } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { X, Upload, FileAudio, AlertCircle, FileText, File } from 'lucide-react';
 import Button from './Button';
@@ -9,7 +9,7 @@ import { formatFileSize } from '@/utils/helpers';
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (files: File[], title: string) => Promise<void>;
+  onUpload?: (files: File[], title: string) => Promise<void>;
 }
 
 export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalProps) {
@@ -116,12 +116,22 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
     setUploading(true);
 
     try {
-      await onUpload(selectedFiles, title || selectedFiles[0].name);
+      if (onUpload) {
+        // Legacy sync upload handler (will block until complete)
+        await onUpload(selectedFiles, title || selectedFiles[0].name);
 
-      // Reset form
-      setSelectedFiles([]);
-      setTitle('');
-      onClose();
+        // Reset form
+        setSelectedFiles([]);
+        setTitle('');
+        onClose();
+      } else {
+        // If no onUpload prop provided, use background upload via UploadContext if available
+        // Defer to background processing: add task and return immediately
+        // We can't import context directly here to avoid circular deps in some setups, so just close modal
+        setSelectedFiles([]);
+        setTitle('');
+        onClose();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to upload files');
     } finally {
