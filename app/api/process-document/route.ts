@@ -110,7 +110,9 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Unsupported file type
-      throw new Error(`File type ${fileType} is not supported. Please upload PDF, Word (.docx), or Text (.txt) files.`);
+      throw new Error(
+        `File type ${fileType} is not supported. Please upload PDF, Word (.docx), or Text (.txt) files.`
+      );
     }
 
     // Validate we have meaningful content

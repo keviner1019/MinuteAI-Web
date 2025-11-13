@@ -149,7 +149,7 @@ ${transcript}
           jsonText = jsonMatch[0];
         }
       }
-      
+
       // Clean up the JSON text by escaping problematic characters in strings
       // This helps prevent JSON parsing errors from special characters
       analysis = JSON.parse(jsonText);
