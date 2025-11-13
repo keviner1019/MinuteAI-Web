@@ -196,28 +196,28 @@ export default function NotePage() {
 
               <div
                 className="prose prose-lg max-w-none 
-                prose-headings:font-bold
-                prose-h1:text-4xl prose-h1:mb-6 prose-h1:mt-8 prose-h1:text-gray-900 prose-h1:border-b-4 prose-h1:border-blue-500 prose-h1:pb-3
-                prose-h2:text-3xl prose-h2:mb-5 prose-h2:mt-7 prose-h2:text-blue-900 prose-h2:border-l-4 prose-h2:border-blue-500 prose-h2:pl-4
-                prose-h3:text-2xl prose-h3:mb-4 prose-h3:mt-6 prose-h3:text-blue-800
-                prose-h4:text-xl prose-h4:mb-3 prose-h4:mt-5 prose-h4:text-gray-800
-                prose-p:text-gray-900 prose-p:leading-relaxed prose-p:mb-4 prose-p:text-base
-                prose-strong:text-gray-900 prose-strong:font-bold prose-strong:bg-yellow-50 prose-strong:px-1
-                prose-em:text-gray-800 prose-em:italic prose-em:font-medium
-                prose-ul:text-gray-900 prose-ul:my-5 prose-ul:list-disc prose-ul:pl-6
-                prose-ol:text-gray-900 prose-ol:my-5 prose-ol:list-decimal prose-ol:pl-6
-                prose-li:text-gray-900 prose-li:mb-3 prose-li:leading-relaxed prose-li:text-base
-                prose-blockquote:text-gray-800 prose-blockquote:border-l-8 prose-blockquote:border-blue-500 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:bg-blue-50 prose-blockquote:py-4 prose-blockquote:my-6 prose-blockquote:rounded-r-lg
-                prose-code:text-pink-700 prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:font-semibold prose-code:border prose-code:border-gray-300
-                prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-6 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:shadow-lg prose-pre:my-6
-                prose-a:text-blue-600 prose-a:underline prose-a:font-semibold prose-a:decoration-2 hover:prose-a:text-blue-800 hover:prose-a:bg-blue-50
-                prose-img:rounded-xl prose-img:shadow-xl prose-img:my-6
-                prose-table:border-collapse prose-table:w-full prose-table:my-6 prose-table:shadow-lg prose-table:rounded-lg prose-table:overflow-hidden
-                prose-thead:bg-gradient-to-r prose-thead:from-blue-600 prose-thead:to-blue-500
-                prose-th:border prose-th:border-gray-300 prose-th:p-4 prose-th:text-left prose-th:font-bold prose-th:text-white prose-th:text-base
-                prose-td:border prose-td:border-gray-200 prose-td:p-4 prose-td:text-gray-900 prose-td:bg-white
-                prose-tr:even:bg-gray-50
-                prose-hr:border-gray-300 prose-hr:my-8 prose-hr:border-2"
+                prose-headings:font-extrabold
+                prose-h1:text-5xl prose-h1:mb-8 prose-h1:mt-10 prose-h1:text-transparent prose-h1:bg-clip-text prose-h1:bg-gradient-to-r prose-h1:from-blue-600 prose-h1:to-purple-600 prose-h1:border-b-4 prose-h1:border-blue-600 prose-h1:pb-4 prose-h1:shadow-sm
+                prose-h2:text-4xl prose-h2:mb-6 prose-h2:mt-9 prose-h2:text-blue-700 prose-h2:border-l-8 prose-h2:border-blue-600 prose-h2:pl-6 prose-h2:bg-gradient-to-r prose-h2:from-blue-50 prose-h2:to-transparent prose-h2:py-3 prose-h2:rounded-r-lg prose-h2:shadow-sm
+                prose-h3:text-3xl prose-h3:mb-5 prose-h3:mt-7 prose-h3:text-indigo-700 prose-h3:font-bold prose-h3:border-b-2 prose-h3:border-indigo-300 prose-h3:pb-2
+                prose-h4:text-2xl prose-h4:mb-4 prose-h4:mt-6 prose-h4:text-purple-700 prose-h4:font-bold
+                prose-p:text-gray-800 prose-p:leading-relaxed prose-p:mb-5 prose-p:text-lg
+                prose-strong:text-gray-900 prose-strong:font-extrabold prose-strong:bg-yellow-200 prose-strong:px-2 prose-strong:py-0.5 prose-strong:rounded prose-strong:shadow-sm
+                prose-em:text-indigo-700 prose-em:italic prose-em:font-semibold prose-em:not-italic
+                prose-ul:text-gray-800 prose-ul:my-6 prose-ul:list-none prose-ul:pl-0
+                prose-ol:text-gray-800 prose-ol:my-6 prose-ol:list-none prose-ol:pl-0 prose-ol:counter-reset-[item]
+                prose-li:text-gray-800 prose-li:mb-4 prose-li:leading-relaxed prose-li:text-lg prose-li:relative prose-li:pl-8 prose-li:before:content-['▸'] prose-li:before:absolute prose-li:before:left-0 prose-li:before:text-blue-600 prose-li:before:font-bold prose-li:before:text-2xl
+                prose-blockquote:text-gray-900 prose-blockquote:border-l-8 prose-blockquote:border-amber-500 prose-blockquote:pl-8 prose-blockquote:italic prose-blockquote:bg-gradient-to-r prose-blockquote:from-amber-50 prose-blockquote:to-yellow-50 prose-blockquote:py-6 prose-blockquote:my-8 prose-blockquote:rounded-r-xl prose-blockquote:shadow-lg prose-blockquote:font-semibold prose-blockquote:text-xl
+                prose-code:text-pink-700 prose-code:bg-pink-100 prose-code:px-3 prose-code:py-1.5 prose-code:rounded-md prose-code:text-base prose-code:font-mono prose-code:font-bold prose-code:border-2 prose-code:border-pink-300 prose-code:shadow-sm
+                prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-6 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:shadow-2xl prose-pre:my-8 prose-pre:border-4 prose-pre:border-gray-700
+                prose-a:text-blue-600 prose-a:underline prose-a:font-bold prose-a:decoration-2 prose-a:underline-offset-2 hover:prose-a:text-blue-800 hover:prose-a:bg-blue-100 hover:prose-a:px-1 hover:prose-a:rounded
+                prose-img:rounded-2xl prose-img:shadow-2xl prose-img:my-8 prose-img:border-4 prose-img:border-gray-200
+                prose-table:border-collapse prose-table:w-full prose-table:my-8 prose-table:shadow-2xl prose-table:rounded-xl prose-table:overflow-hidden prose-table:border-4 prose-table:border-blue-200
+                prose-thead:bg-gradient-to-r prose-thead:from-blue-700 prose-thead:via-blue-600 prose-thead:to-purple-600
+                prose-th:border-0 prose-th:p-5 prose-th:text-left prose-th:font-extrabold prose-th:text-white prose-th:text-lg prose-th:uppercase prose-th:tracking-wide
+                prose-td:border prose-td:border-blue-100 prose-td:p-5 prose-td:text-gray-900 prose-td:bg-white prose-td:text-base prose-td:font-medium
+                prose-tr:even:bg-blue-50 prose-tr:hover:bg-blue-100 prose-tr:transition-colors
+                prose-hr:border-gradient-to-r prose-hr:from-blue-500 prose-hr:via-purple-500 prose-hr:to-pink-500 prose-hr:my-10 prose-hr:border-4 prose-hr:rounded-full"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.markdownAnalysis}</ReactMarkdown>
               </div>

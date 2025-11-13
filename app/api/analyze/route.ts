@@ -137,13 +137,22 @@ ${transcript}
     // Parse the JSON response
     let analysis;
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
+      // Try to extract JSON from markdown code blocks first
+      let jsonText = text;
+      const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        jsonText = codeBlockMatch[1];
       } else {
-        throw new Error('No JSON found in response');
+        // Try to find raw JSON
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[0];
+        }
       }
+      
+      // Clean up the JSON text by escaping problematic characters in strings
+      // This helps prevent JSON parsing errors from special characters
+      analysis = JSON.parse(jsonText);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       // Fallback: create a basic structure

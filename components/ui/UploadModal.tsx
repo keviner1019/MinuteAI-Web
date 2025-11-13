@@ -25,11 +25,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'application/msword', // .doc
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-      'application/vnd.ms-powerpoint', // .ppt
       'text/plain', // .txt
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel', // .xls
     ];
 
     return (
@@ -95,11 +91,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-      'application/vnd.ms-powerpoint': ['.ppt'],
       'text/plain': ['.txt'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls'],
     },
     multiple: true,
     maxSize: 100 * 1024 * 1024, // 100MB
@@ -198,7 +190,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
               <p className="text-xs text-gray-500">
                 Audio: MP3, WAV, M4A, FLAC, OGG, WEBM
                 <br />
-                Documents: PDF, DOCX, PPTX, TXT, XLSX
+                Documents: PDF, DOCX, TXT
                 <br />
                 (max 100MB per file, multiple files allowed)
               </p>

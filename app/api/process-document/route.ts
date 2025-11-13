@@ -108,36 +108,9 @@ export async function POST(request: NextRequest) {
           }`
         );
       }
-    } else if (
-      fileType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-      fileType === 'application/vnd.ms-powerpoint'
-    ) {
-      // PowerPoint - extract what we can
-      try {
-        const text = await response.text();
-        // Basic extraction - try to get text content
-        extractedContent = text
-          .replace(/<[^>]*>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        if (!extractedContent || extractedContent.length < 100) {
-          extractedContent = `PowerPoint Presentation: ${fileName}\n\nThis PowerPoint file has been uploaded. For best results with presentations, please export to PDF first and upload the PDF version for detailed analysis.`;
-        }
-
-        console.log('PowerPoint processed, length:', extractedContent.length);
-      } catch (pptError) {
-        console.error('PowerPoint extraction error:', pptError);
-        extractedContent = `PowerPoint Presentation: ${fileName}\n\nThis PowerPoint file has been uploaded. For best results with presentations, please export to PDF first and upload the PDF version for detailed analysis.`;
-      }
-    } else if (
-      fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      fileType === 'application/vnd.ms-excel'
-    ) {
-      // Excel files
-      extractedContent = `Excel Spreadsheet: ${fileName}\n\nThis is an Excel spreadsheet. For best results with spreadsheet data, please export to PDF or convert to plain text (CSV/TXT) format before uploading for detailed analysis.`;
     } else {
-      extractedContent = `Document: ${fileName}\n\nThis file type (${fileType}) is not fully supported for automatic content extraction. For best results, please convert to PDF or TXT format.`;
+      // Unsupported file type
+      throw new Error(`File type ${fileType} is not supported. Please upload PDF, Word (.docx), or Text (.txt) files.`);
     }
 
     // Validate we have meaningful content
