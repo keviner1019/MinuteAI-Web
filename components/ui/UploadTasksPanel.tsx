@@ -95,19 +95,13 @@ export default function UploadTasksPanel() {
         {tasks.length > 0 && (
           <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
             {activeTasks.length > 0 && (
-              <span className="mr-3">
-                ⏳ {activeTasks.length} in progress
-              </span>
+              <span className="mr-3">⏳ {activeTasks.length} in progress</span>
             )}
             {completedTasks.length > 0 && (
-              <span className="mr-3 text-green-600">
-                ✓ {completedTasks.length} completed
-              </span>
+              <span className="mr-3 text-green-600">✓ {completedTasks.length} completed</span>
             )}
             {errorTasks.length > 0 && (
-              <span className="text-red-600">
-                ✗ {errorTasks.length} failed
-              </span>
+              <span className="text-red-600">✗ {errorTasks.length} failed</span>
             )}
           </div>
         )}

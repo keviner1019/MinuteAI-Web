@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map common language codes to DeepL format
+    // Note: DeepL has limited language support. Unsupported languages will use fallback
     const deeplLanguageMap: Record<string, string> = {
       en: 'EN',
       zh: 'ZH',
@@ -43,15 +44,27 @@ export async function POST(request: NextRequest) {
       th: 'TH',
       vi: 'VI',
       id: 'ID',
-      ms: 'MS',
       nl: 'NL',
       pl: 'PL',
       tr: 'TR',
       sv: 'SV',
+      // Note: Malay (ms) is NOT supported by DeepL
+      // Will use fallback translation for unsupported languages
     };
 
+    // Languages NOT supported by DeepL - will use Google Translate fallback
+    const unsupportedByDeepL = ['ms', 'fil', 'bn', 'ta', 'te', 'ur'];
+
+    const targetLangLower = targetLanguage.toLowerCase();
+
+    // Check if language is unsupported by DeepL
+    if (unsupportedByDeepL.includes(targetLangLower)) {
+      // Use Google Translate as fallback for unsupported languages
+      return await translateWithGoogleFallback(text, targetLanguage);
+    }
+
     const deeplTargetLang =
-      deeplLanguageMap[targetLanguage.toLowerCase()] || targetLanguage.toUpperCase();
+      deeplLanguageMap[targetLangLower] || targetLanguage.toUpperCase();
 
     // Call DeepL API with timeout
     const controller = new AbortController();

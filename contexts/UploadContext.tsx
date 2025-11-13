@@ -16,7 +16,12 @@ export interface UploadTask {
 
 interface UploadContextType {
   tasks: UploadTask[];
-  startUpload: (files: File[], title: string, userId: string, onComplete?: () => void) => Promise<void>;
+  startUpload: (
+    files: File[],
+    title: string,
+    userId: string,
+    onComplete?: () => void
+  ) => Promise<void>;
   clearTask: (taskId: string) => void;
   clearAllCompleted: () => void;
 }
