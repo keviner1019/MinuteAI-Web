@@ -181,11 +181,14 @@ CREATE TABLE IF NOT EXISTS public.transcripts (
 CREATE TABLE IF NOT EXISTS public.meeting_audio (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     meeting_id UUID REFERENCES public.meetings(id) ON DELETE CASCADE NOT NULL,
-    audio_url TEXT NOT NULL, -- Supabase Storage URL
+    audio_url TEXT, -- Supabase Storage URL (nullable while uploading)
     duration INTEGER,
     file_size BIGINT,
     format TEXT DEFAULT 'webm',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    recorded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('uploading', 'completed', 'failed')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- AI Summaries for meetings

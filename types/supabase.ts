@@ -80,6 +80,85 @@ export interface Database {
           updated_at?: string;
         };
       };
+      meeting_audio: {
+        Row: {
+          id: string;
+          meeting_id: string;
+          audio_url: string | null;
+          duration: number | null;
+          file_size: number | null;
+          format: string | null;
+          recorded_by: string | null;
+          status: 'uploading' | 'completed' | 'failed';
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          meeting_id: string;
+          audio_url?: string | null;
+          duration?: number | null;
+          file_size?: number | null;
+          format?: string | null;
+          recorded_by?: string | null;
+          status?: 'uploading' | 'completed' | 'failed';
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          meeting_id?: string;
+          audio_url?: string | null;
+          duration?: number | null;
+          file_size?: number | null;
+          format?: string | null;
+          recorded_by?: string | null;
+          status?: 'uploading' | 'completed' | 'failed';
+          created_at?: string;
+          updated_at?: string | null;
+        };
+      };
+      meetings: {
+        Row: {
+          id: string;
+          room_id: string;
+          host_id: string | null;
+          guest_id: string | null;
+          title: string | null;
+          status: 'scheduled' | 'active' | 'ended' | null;
+          started_at: string | null;
+          ended_at: string | null;
+          created_at: string;
+          updated_at: string;
+          meeting_code: string | null;
+        };
+        Insert: {
+          id?: string;
+          room_id: string;
+          host_id?: string | null;
+          guest_id?: string | null;
+          title?: string | null;
+          status?: 'scheduled' | 'active' | 'ended' | null;
+          started_at?: string | null;
+          ended_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          meeting_code?: string | null;
+        };
+        Update: {
+          id?: string;
+          room_id?: string;
+          host_id?: string | null;
+          guest_id?: string | null;
+          title?: string | null;
+          status?: 'scheduled' | 'active' | 'ended' | null;
+          started_at?: string | null;
+          ended_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          meeting_code?: string | null;
+        };
+      };
     };
   };
 }
@@ -91,4 +170,3 @@ export interface ActionItemDB {
   priority?: 'high' | 'medium' | 'low';
   completed: boolean;
 }
-

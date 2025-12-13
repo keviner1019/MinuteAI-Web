@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { useUpload } from '@/contexts/UploadContext';
-import { X, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { X, CheckCircle, Loader2, AlertCircle, RotateCw } from 'lucide-react';
 import Button from './Button';
 
 export default function UploadTasksPanel() {
-  const { tasks, clearTask, clearAllCompleted } = useUpload();
+  const { tasks, clearTask, clearAllCompleted, retryUpload } = useUpload();
 
   if (!tasks || tasks.length === 0) return null;
 
@@ -41,7 +41,9 @@ export default function UploadTasksPanel() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex items-start gap-3 p-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+              className={`flex items-start gap-3 p-4 border-b border-gray-100 last:border-0 transition-colors ${
+                task.status === 'error' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'
+              }`}
             >
               {/* Status Icon */}
               <div className="flex-shrink-0 mt-0.5">
@@ -68,14 +70,23 @@ export default function UploadTasksPanel() {
                     task.status === 'completed'
                       ? 'text-green-600'
                       : task.status === 'error'
-                      ? 'text-red-600'
+                      ? 'text-red-600 font-medium'
                       : 'text-gray-600'
                   }`}
                 >
                   {task.progress}
                 </p>
-                {task.error && (
-                  <p className="text-xs text-red-600 mt-1 line-clamp-2">{task.error}</p>
+                {task.error && <p className="text-xs text-gray-600 mt-1">{task.error}</p>}
+
+                {/* Retry button - prominent for errors */}
+                {task.status === 'error' && (
+                  <button
+                    onClick={() => retryUpload(task.id)}
+                    className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    Retry Upload
+                  </button>
                 )}
               </div>
 

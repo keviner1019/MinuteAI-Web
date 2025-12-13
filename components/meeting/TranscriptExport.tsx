@@ -30,12 +30,6 @@ const exportOptions: ExportOption[] = [
     icon: FileText,
   },
   {
-    format: 'pdf',
-    label: 'PDF Document',
-    description: 'Formatted PDF with styling',
-    icon: FileImage,
-  },
-  {
     format: 'docx',
     label: 'Word Document',
     description: 'Editable Microsoft Word file',

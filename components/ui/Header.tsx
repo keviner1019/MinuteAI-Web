@@ -1,15 +1,46 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from './Button';
 import { Avatar } from './Avatar';
+import { supabase } from '@/lib/supabase/config';
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+
+  // Load user profile picture
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadUserAvatar = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single();
+
+        if (data && (data as any).avatar_url) {
+          setUserAvatarUrl((data as any).avatar_url);
+        } else {
+          // Fallback to Google/OAuth avatar
+          setUserAvatarUrl(user?.user_metadata?.avatar_url || null);
+        }
+      } catch (error) {
+        console.error('Error loading user avatar:', error);
+        // Fallback to Google/OAuth avatar
+        setUserAvatarUrl(user?.user_metadata?.avatar_url || null);
+      }
+    };
+
+    loadUserAvatar();
+  }, [user]);
 
   const handleLogout = async () => {
     await signOut();
@@ -23,7 +54,6 @@ export default function Header() {
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Notes', path: '/notes' },
   ];
 
   return (
@@ -61,7 +91,7 @@ export default function Header() {
                 aria-label="User menu"
               >
                 <Avatar
-                  src={user?.user_metadata?.avatar_url}
+                  src={userAvatarUrl}
                   alt={user?.user_metadata?.full_name || user?.email || 'User'}
                   size="sm"
                 />
@@ -71,7 +101,7 @@ export default function Header() {
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="p-3 border-b border-gray-200">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.user_metadata?.full_name || 'User'}
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
                   </p>
                   <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>

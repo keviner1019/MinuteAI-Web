@@ -16,7 +16,7 @@ interface ActionItemsListProps {
 export default function ActionItemsList({ initialItems, noteId, onUpdate }: ActionItemsListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newItemText, setNewItemText] = useState('');
-  const [newItemPriority, setNewItemPriority] = useState<'high' | 'medium' | 'low'>('medium');
+  const [newItemPriority, setNewItemPriority] = useState<'high' | 'medium' | 'low' | ''>(''); // Empty string means no priority
   const [newItemDeadline, setNewItemDeadline] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -41,9 +41,13 @@ export default function ActionItemsList({ initialItems, noteId, onUpdate }: Acti
 
     setLoading(true);
     try {
-      await addItem(newItemText.trim(), newItemPriority, newItemDeadline || undefined);
+      await addItem(
+        newItemText.trim(),
+        newItemPriority || undefined, // Only pass priority if selected
+        newItemDeadline || undefined
+      );
       setNewItemText('');
-      setNewItemPriority('medium');
+      setNewItemPriority('');
       setNewItemDeadline('');
       setIsAdding(false);
     } catch (error) {
@@ -184,14 +188,14 @@ export default function ActionItemsList({ initialItems, noteId, onUpdate }: Acti
 
       {/* Add New Item Form */}
       {isAdding && (
-        <div className="bg-white border border-blue-300 rounded-lg p-4 shadow-sm">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Add New Action Item</h4>
+        <div className="bg-white border-2 border-blue-500 rounded-xl p-5 shadow-lg">
+          <h4 className="text-base font-bold text-gray-900 mb-4">Add New Action Item</h4>
           <div className="space-y-3">
             <textarea
               value={newItemText}
               onChange={(e) => setNewItemText(e.target.value)}
               placeholder="What needs to be done?"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-sm font-medium text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows={2}
               autoFocus
             />
@@ -199,13 +203,16 @@ export default function ActionItemsList({ initialItems, noteId, onUpdate }: Acti
             <div className="flex items-center gap-2 flex-wrap">
               <select
                 value={newItemPriority}
-                onChange={(e) => setNewItemPriority(e.target.value as 'high' | 'medium' | 'low')}
+                onChange={(e) =>
+                  setNewItemPriority(e.target.value as 'high' | 'medium' | 'low' | '')
+                }
                 title="Select priority"
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2.5 border-2 border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               >
-                <option value="high">High Priority</option>
-                <option value="medium">Medium Priority</option>
-                <option value="low">Low Priority</option>
+                <option value="">No Priority</option>
+                <option value="high">🔴 High Priority</option>
+                <option value="medium">🟡 Medium Priority</option>
+                <option value="low">🟢 Low Priority</option>
               </select>
 
               <input
@@ -214,7 +221,7 @@ export default function ActionItemsList({ initialItems, noteId, onUpdate }: Acti
                 onChange={(e) => setNewItemDeadline(e.target.value)}
                 title="Set deadline"
                 placeholder="Set deadline"
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2.5 border-2 border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 

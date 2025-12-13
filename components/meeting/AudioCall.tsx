@@ -1,41 +1,38 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/config';
+import { Participant } from '@/types';
 
 interface AudioCallProps {
   localStream: MediaStream | null;
-  remoteStream: MediaStream | null;
-  remoteStreamVersion: number;
+  participants: Map<string, Participant>;
   isConnected: boolean;
   connectionState: RTCPeerConnectionState;
-  remoteUserProfile?: { display_name: string | null; avatar_url: string | null } | null;
 }
 
 export function AudioCall({
   localStream,
-  remoteStream,
-  remoteStreamVersion,
+  participants,
   isConnected,
   connectionState,
-  remoteUserProfile,
 }: AudioCallProps) {
   const { user } = useAuth();
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const localAudioRef = useRef<HTMLAudioElement>(null);
-  const [hasRemoteAudio, setHasRemoteAudio] = useState(false);
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const [localAudioLevel, setLocalAudioLevel] = useState(0);
-  const [remoteAudioLevel, setRemoteAudioLevel] = useState(0);
-  const [isLocalMonitorEnabled, setIsLocalMonitorEnabled] = useState(false);
+  const [remoteAudioLevels, setRemoteAudioLevels] = useState<Map<string, number>>(new Map());
   const [localProfile, setLocalProfile] = useState<{
     display_name: string;
     avatar_url: string;
   } | null>(null);
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
-  const [isRemoteSpeaking, setIsRemoteSpeaking] = useState(false);
+
+  const localAudioEnabled = !!localStream?.getAudioTracks()[0]?.enabled;
+  const participantList = useMemo(() => Array.from(participants.values()), [participants]);
+  const hasParticipants = participantList.length > 0;
 
   // Load user profile
   useEffect(() => {
@@ -58,112 +55,41 @@ export function AudioCall({
 
   // Detect speaking based on audio level threshold
   useEffect(() => {
-    const SPEAKING_THRESHOLD = 0.1; // Adjust this threshold as needed
+    const SPEAKING_THRESHOLD = 0.1;
     setIsLocalSpeaking(localAudioLevel > SPEAKING_THRESHOLD);
   }, [localAudioLevel]);
 
+  // Setup audio playback for each remote participant
   useEffect(() => {
-    const SPEAKING_THRESHOLD = 0.1;
-    setIsRemoteSpeaking(remoteAudioLevel > SPEAKING_THRESHOLD);
-  }, [remoteAudioLevel]);
+    participantList.forEach((participant) => {
+      if (!participant.stream) return;
 
-  // Setup local audio monitoring (for testing on same device)
-  useEffect(() => {
-    if (!localStream || !localAudioRef.current || !isLocalMonitorEnabled) {
-      if (localAudioRef.current) {
-        localAudioRef.current.srcObject = null;
-      }
-      return;
-    }
-
-    localAudioRef.current.srcObject = localStream;
-    localAudioRef.current.volume = 0.5; // Reduce volume to prevent feedback
-  }, [localStream, isLocalMonitorEnabled]);
-
-  // Setup remote audio
-  useEffect(() => {
-    console.log('🔄 AudioCall remoteStream useEffect triggered!', {
-      hasRemoteAudioRef: !!remoteAudioRef.current,
-      hasRemoteStream: !!remoteStream,
-      remoteStreamVersion,
-      trackCount: remoteStream?.getTracks().length || 0,
-    });
-
-    if (!remoteStream) {
-      setHasRemoteAudio(false);
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      if (!remoteAudioRef.current || !remoteStream) {
-        console.log('⚠️ Audio ref or stream not available yet');
-        setHasRemoteAudio(false);
-        return;
+      let audioEl = audioRefs.current.get(participant.userId);
+      if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.autoplay = true;
+        audioRefs.current.set(participant.userId, audioEl);
       }
 
-      console.log('🎵 Setting remote audio stream:', remoteStream);
-      console.log('🎵 Remote stream ID:', remoteStream.id);
-      console.log(
-        '🎵 All tracks:',
-        remoteStream.getTracks().map((t) => ({
-          kind: t.kind,
-          id: t.id,
-          enabled: t.enabled,
-          muted: t.muted,
-          readyState: t.readyState,
-          label: t.label,
-        }))
-      );
-
-      remoteAudioRef.current.srcObject = remoteStream;
-      console.log('✅ Set srcObject on remote audio element');
-
-      const audioTracks = remoteStream.getAudioTracks();
-      console.log('🎵 Audio tracks count:', audioTracks.length);
-
-      if (audioTracks.length > 0) {
-        const activeAudioTracks = audioTracks.filter((t) => t.enabled && t.readyState === 'live');
-        console.log('🎵 Active audio tracks:', activeAudioTracks.length);
-        setHasRemoteAudio(activeAudioTracks.length > 0);
-      } else {
-        console.log('🎵 No audio tracks found');
-        setHasRemoteAudio(false);
-      }
-    }, 0);
-
-    const handleTrackChange = () => {
-      if (!remoteStream) return;
-      const aTracks = remoteStream.getAudioTracks();
-      const activeATracks = aTracks.filter((t) => t.enabled && t.readyState === 'live');
-      console.log('🎵 Track change detected - Active audio tracks:', activeATracks.length);
-      setHasRemoteAudio(activeATracks.length > 0);
-    };
-
-    const handleAddTrack = (event: MediaStreamTrackEvent) => {
-      console.log('🎵 New track added:', event.track.kind, event.track.id);
-      handleTrackChange();
-    };
-
-    remoteStream.addEventListener('addtrack', handleAddTrack);
-
-    remoteStream.getTracks().forEach((track) => {
-      track.addEventListener('enabled', handleTrackChange);
-      track.addEventListener('mute', handleTrackChange);
-      track.addEventListener('unmute', handleTrackChange);
-    });
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (remoteStream) {
-        remoteStream.removeEventListener('addtrack', handleAddTrack);
-        remoteStream.getTracks().forEach((track) => {
-          track.removeEventListener('enabled', handleTrackChange);
-          track.removeEventListener('mute', handleTrackChange);
-          track.removeEventListener('unmute', handleTrackChange);
+      if (audioEl.srcObject !== participant.stream) {
+        audioEl.srcObject = participant.stream;
+        audioEl.play().catch((err) => {
+          console.warn('Audio autoplay blocked:', err);
         });
       }
-    };
-  }, [remoteStream, remoteStreamVersion]);
+    });
+
+    // Cleanup removed participants
+    audioRefs.current.forEach((_, userId) => {
+      if (!participants.has(userId)) {
+        const audioEl = audioRefs.current.get(userId);
+        if (audioEl) {
+          audioEl.srcObject = null;
+          audioRefs.current.delete(userId);
+        }
+      }
+    });
+  }, [participantList, participants]);
 
   // Audio level visualization for local stream
   useEffect(() => {
@@ -199,150 +125,205 @@ export function AudioCall({
     }
   }, [localStream]);
 
-  // Audio level visualization for remote stream
+  // Audio level visualization for remote streams
   useEffect(() => {
-    if (!remoteStream) return;
+    const contexts: AudioContext[] = [];
 
-    const audioTrack = remoteStream.getAudioTracks()[0];
-    if (!audioTrack) return;
+    participantList.forEach((participant) => {
+      if (!participant.stream) return;
 
-    try {
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      const source = audioContext.createMediaStreamSource(remoteStream);
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const audioTrack = participant.stream.getAudioTracks()[0];
+      if (!audioTrack) return;
 
-      source.connect(analyser);
-      analyser.fftSize = 256;
+      try {
+        const audioContext = new AudioContext();
+        contexts.push(audioContext);
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(participant.stream);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-      const updateLevel = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        setRemoteAudioLevel(average / 255);
-        requestAnimationFrame(updateLevel);
-      };
+        source.connect(analyser);
+        analyser.fftSize = 256;
 
-      updateLevel();
+        const updateLevel = () => {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          setRemoteAudioLevels((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(participant.userId, average / 255);
+            return newMap;
+          });
+          requestAnimationFrame(updateLevel);
+        };
 
-      return () => {
-        source.disconnect();
-        audioContext.close();
-      };
-    } catch (error) {
-      console.error('Error setting up remote audio visualization:', error);
-    }
-  }, [remoteStream]);
+        updateLevel();
+      } catch (error) {
+        console.error('Error setting up remote audio visualization:', error);
+      }
+    });
+
+    return () => {
+      contexts.forEach((ctx) => ctx.close());
+    };
+  }, [participantList]);
+
+  const isParticipantSpeaking = (userId: string) => {
+    return (remoteAudioLevels.get(userId) || 0) > 0.1;
+  };
+
+  const getGridLayout = () => {
+    const total = participantList.length + 1; // +1 for local user
+    if (total <= 2) return 'flex flex-row justify-center';
+    if (total <= 4) return 'grid grid-cols-2';
+    return 'grid grid-cols-3';
+  };
 
   return (
-    <div className="flex-1 relative bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      {/* Main Content */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        {isConnected ? (
-          // Connected - Show audio visualization with avatars
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-24 mb-8">
-              {/* Local User Audio Indicator */}
-              <div className="flex flex-col items-center">
-                <div className="mb-6">
+    <div className="flex-1 relative bg-transparent">
+      <div className="flex h-full w-full items-center justify-center px-4 py-8">
+        {hasParticipants || isConnected ? (
+          // Connected - Show all participants
+          <div className="text-center w-full max-w-5xl">
+            <div className={`${getGridLayout()} gap-8 md:gap-12 justify-items-center`}>
+              {/* Local User */}
+              <div className="flex flex-col items-center group">
+                <div className="relative mb-6">
+                  {isLocalSpeaking && localAudioEnabled && (
+                    <div className="absolute inset-0 rounded-full bg-indigo-300/50 blur-2xl scale-150 animate-pulse" />
+                  )}
+                  <div
+                    className={`absolute -inset-2 rounded-full border-2 transition-all duration-300 ${
+                      isLocalSpeaking && localAudioEnabled
+                        ? 'border-indigo-500 scale-110'
+                        : 'border-slate-200 scale-100'
+                    }`}
+                  />
                   <Avatar
                     src={localProfile?.avatar_url}
                     alt={localProfile?.display_name || 'You'}
                     size="xl"
-                    isSpeaking={isLocalSpeaking && localStream?.getAudioTracks()[0]?.enabled}
-                    className="w-40 h-40"
+                    isSpeaking={isLocalSpeaking && localAudioEnabled}
+                    className="w-24 h-24 md:w-32 md:h-32 relative z-10"
                   />
                 </div>
-                <p className="text-gray-900 text-lg font-medium mb-1">
-                  {localProfile?.display_name || 'You'}
-                </p>
-                <div className="flex items-center gap-2 text-blue-600">
-                  {localStream && localStream.getAudioTracks()[0]?.enabled ? (
-                    <>
-                      <Volume2 size={20} />
-                      <span className="text-sm">{isLocalSpeaking ? 'Speaking' : 'Connected'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <VolumeX size={20} />
-                      <span className="text-sm">Muted</span>
-                    </>
-                  )}
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-slate-800 text-lg font-semibold">
+                    {localProfile?.display_name || 'You'}
+                  </p>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                      !localAudioEnabled
+                        ? 'bg-red-50 text-red-600 border border-red-200'
+                        : isLocalSpeaking
+                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200'
+                    }`}
+                  >
+                    {localAudioEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                    <span>
+                      {!localAudioEnabled ? 'Muted' : isLocalSpeaking ? 'Speaking' : 'Connected'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Remote User Audio Indicator */}
-              <div className="flex flex-col items-center">
-                <div className="mb-6">
-                  <Avatar
-                    src={remoteUserProfile?.avatar_url}
-                    alt={remoteUserProfile?.display_name || 'Participant'}
-                    size="xl"
-                    isSpeaking={isRemoteSpeaking && hasRemoteAudio}
-                    className="w-40 h-40"
-                  />
-                </div>
-                <p className="text-gray-900 text-lg font-medium mb-1">
-                  {remoteUserProfile?.display_name || 'Participant'}
-                </p>
-                <div className="flex items-center gap-2 text-violet-600">
-                  {hasRemoteAudio ? (
-                    <>
-                      <Volume2 size={20} />
-                      <span className="text-sm">{isRemoteSpeaking ? 'Speaking' : 'Connected'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <VolumeX size={20} />
-                      <span className="text-sm">Muted</span>
-                    </>
-                  )}
-                </div>
-              </div>
+              {/* Remote Participants */}
+              {participantList.map((participant) => {
+                const isSpeaking = isParticipantSpeaking(participant.userId);
+                const hasAudio = participant.stream !== null && !participant.isMuted;
+
+                return (
+                  <div key={participant.userId} className="flex flex-col items-center group">
+                    <div className="relative mb-6">
+                      {isSpeaking && hasAudio && (
+                        <div className="absolute inset-0 rounded-full bg-purple-300/50 blur-2xl scale-150 animate-pulse" />
+                      )}
+                      <div
+                        className={`absolute -inset-2 rounded-full border-2 transition-all duration-300 ${
+                          isSpeaking && hasAudio
+                            ? 'border-purple-500 scale-110'
+                            : 'border-slate-200 scale-100'
+                        }`}
+                      />
+                      <Avatar
+                        src={participant.avatarUrl}
+                        alt={participant.displayName || 'Participant'}
+                        size="xl"
+                        isSpeaking={isSpeaking && hasAudio}
+                        className="w-24 h-24 md:w-32 md:h-32 relative z-10"
+                      />
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-slate-800 text-lg font-semibold">
+                        {participant.displayName || 'Participant'}
+                      </p>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                          participant.isMuted
+                            ? 'bg-red-50 text-red-600 border border-red-200'
+                            : isSpeaking
+                            ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                            : 'bg-slate-100 text-slate-500 border border-slate-200'
+                        }`}
+                      >
+                        {hasAudio ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                        <span>
+                          {participant.isMuted ? 'Muted' : isSpeaking ? 'Speaking' : 'Connected'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Connection Status */}
-            <div className="bg-green-50 border border-green-600 text-green-700 px-6 py-3 rounded-full inline-flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-600 rounded-full animate-pulse"></div>
-              <span className="font-medium">Audio Connected</span>
-            </div>
+            {/* Connection indicator for multiple participants */}
+            {participantList.length > 0 && (
+              <div className="flex justify-center mt-8">
+                <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{participantList.length + 1} participants connected</span>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           // Waiting for participant
-          <div className="text-center text-gray-900">
-            <div className="mb-6">
+          <div className="text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 rounded-full border-2 border-slate-200 animate-pulse scale-110" />
               <Avatar
                 src={localProfile?.avatar_url}
                 alt={localProfile?.display_name || 'You'}
                 size="xl"
-                className="w-32 h-32 mx-auto"
+                className="w-32 h-32 mx-auto relative z-10"
               />
             </div>
-            <h3 className="text-2xl font-semibold mb-2">
-              {connectionState === 'connecting' ? 'Connecting...' : 'Waiting for participant'}
+            <h3 className="text-2xl font-bold text-slate-800 mb-3">
+              {connectionState === 'connecting' ? 'Connecting...' : 'Waiting for participants'}
             </h3>
-            <p className="text-gray-600">Share the meeting link to invite someone</p>
+            <p className="text-slate-500 text-lg">Share the meeting link to invite others</p>
+            {connectionState === 'connecting' && (
+              <div className="flex justify-center gap-1 mt-6">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce"
+                    style={{ animationDelay: `${i * 150}ms` }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Connection Status Badge */}
-      {isConnected && (
-        <div className="absolute top-6 left-6 bg-green-600 text-white px-4 py-2 rounded-full text-sm flex items-center gap-2 shadow-lg">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          Connected
-        </div>
-      )}
-
       {/* Connection State Info */}
-      {connectionState !== 'connected' && connectionState !== 'new' && (
-        <div className="absolute top-6 left-6 bg-yellow-600 text-white px-4 py-2 rounded-full text-sm shadow-lg">
+      {connectionState !== 'connected' && connectionState !== 'new' && !hasParticipants && (
+        <div className="absolute top-6 left-6 bg-amber-50 backdrop-blur-md text-amber-700 px-4 py-2 rounded-xl text-sm font-medium border border-amber-200">
           {connectionState}
         </div>
       )}
-
-      {/* Audio elements */}
-      <audio ref={remoteAudioRef} autoPlay playsInline />
-      <audio ref={localAudioRef} autoPlay playsInline />
     </div>
   );
 }

@@ -5,7 +5,16 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
-import { ArrowLeft, Loader2, Download, Trash2, XCircle, CheckCircle2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Loader2,
+  Download,
+  Trash2,
+  XCircle,
+  CheckCircle2,
+  Music,
+  FileText,
+} from 'lucide-react';
 import { getNote, deleteNote, updateActionItems } from '@/lib/supabase/database';
 import { Note, ActionItem, TranscriptSegment } from '@/types';
 import TranscriptViewer from '@/components/meeting/TranscriptViewer';
@@ -99,40 +108,89 @@ export default function NotePage() {
 
   if (!note) return null;
 
-  // Check if the file is audio/video or document
-  const isAudioVideo = note.fileType.startsWith('audio/') || note.fileType.startsWith('video/');
-  const isDocument =
-    note.fileType.includes('pdf') ||
-    note.fileType.includes('document') ||
-    note.fileType.includes('word') ||
-    note.fileType.includes('presentation') ||
-    note.fileType.includes('powerpoint') ||
-    note.fileType.includes('spreadsheet') ||
-    note.fileType.includes('excel') ||
-    note.fileType.includes('text/plain');
+  // Check if the note contains an audio/video file
+  const hasAudio = note.fileType?.startsWith('audio/') || note.fileType?.startsWith('video/');
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 pb-8">
         {/* Main Content */}
         <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="mb-6">
-            <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-4">
+          {/* Header with Enhanced File Display */}
+          <div className="mb-8">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/dashboard')}
+              className="mb-6 hover:bg-gray-100 transition-colors"
+            >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              Back to Dashboard
             </Button>
-            <div className="flex items-start justify-between">
+
+            {/* Title and Actions */}
+            <div className="flex items-start justify-between gap-4 mb-6">
               <div className="flex-1">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{note.title}</h1>
-                <p className="text-sm text-gray-600">
-                  {note.fileName} • {(note.fileSize / 1024 / 1024).toFixed(2)} MB
+                <h1 className="text-4xl font-bold text-gray-900 mb-3 leading-tight">
+                  {note.title}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  Created{' '}
+                  {new Date(note.createdAt).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
                 </p>
               </div>
-              <Button variant="secondary" onClick={handleDelete} className="ml-4">
+              <Button
+                variant="secondary"
+                onClick={handleDelete}
+                className="flex-shrink-0 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all"
+              >
                 <Trash2 className="h-4 w-4" />
-                Delete
+                Delete Note
               </Button>
+            </div>
+
+            {/* File Information Card */}
+            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-2 border-blue-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 p-3 bg-white rounded-xl shadow-sm">
+                  {hasAudio ? (
+                    <Music className="h-8 w-8 text-blue-600" />
+                  ) : (
+                    <FileText className="h-8 w-8 text-purple-600" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-gray-900 mb-1">File Information</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600 font-medium">Name:</span>
+                      <span className="text-gray-900 font-semibold truncate">{note.fileName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600 font-medium">Size:</span>
+                      <span className="text-gray-900 font-semibold">
+                        {(note.fileSize / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600 font-medium">Type:</span>
+                      <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
+                        {hasAudio ? 'Audio/Video' : 'Document'}
+                      </span>
+                    </div>
+                    {note.transcript && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="text-green-700 font-semibold">Processing Complete</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -143,81 +201,67 @@ export default function NotePage() {
             </div>
           )}
 
-          {/* Audio Player - Only show for audio/video files */}
-          {isAudioVideo && (
-            <div className="card-lg mb-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Audio File</h2>
-              <audio controls className="w-full" src={note.storageUrl}>
-                Your browser does not support the audio element.
-              </audio>
-              <div className="mt-4">
-                <a
-                  href={note.storageUrl}
-                  download={note.fileName}
-                  className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 inline-flex"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Audio
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* Completed Transcription Section */}
-          {note.transcript && !note.markdownAnalysis && (
+          {/* Completed Transcription Section with Integrated Audio Player - only show if audio files exist */}
+          {hasAudio && note.transcript && (
             <div className="card-lg mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Completed Transcription</h2>
+                <h2 className="text-base font-semibold text-gray-900">Transcription</h2>
                 <div className="flex items-center gap-2 text-green-600">
                   <CheckCircle2 className="h-5 w-5" />
                   <span className="text-sm font-medium">Transcription Complete</span>
                 </div>
               </div>
 
-              <TranscriptViewer
-                segments={note.transcriptSegments || []}
-                audioUrl={note.storageUrl}
-                title={note.title}
-                noteId={note.id}
-              />
+              {/* Show segments if available, otherwise show plain transcript */}
+              {note.transcriptSegments && note.transcriptSegments.length > 0 ? (
+                <TranscriptViewer
+                  segments={note.transcriptSegments}
+                  audioUrl={note.storageUrl}
+                  title={note.title}
+                  noteId={note.id}
+                />
+              ) : (
+                <div className="bg-white rounded-lg border border-gray-200 p-6 max-h-[600px] overflow-y-auto">
+                  <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                    {note.transcript}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Markdown Analysis (for documents) */}
           {note.markdownAnalysis && (
             <div className="card-lg mb-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Document Analysis</h2>
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="text-sm font-semibold">Analysis Complete</span>
-                </div>
               </div>
 
               <div
                 className="prose prose-lg max-w-none 
-                prose-headings:font-bold
-                prose-h1:text-4xl prose-h1:mb-6 prose-h1:mt-8 prose-h1:text-gray-900 prose-h1:border-b-4 prose-h1:border-blue-500 prose-h1:pb-3
-                prose-h2:text-3xl prose-h2:mb-5 prose-h2:mt-7 prose-h2:text-blue-900 prose-h2:border-l-4 prose-h2:border-blue-500 prose-h2:pl-4
-                prose-h3:text-2xl prose-h3:mb-4 prose-h3:mt-6 prose-h3:text-blue-800
-                prose-h4:text-xl prose-h4:mb-3 prose-h4:mt-5 prose-h4:text-gray-800
-                prose-p:text-gray-900 prose-p:leading-relaxed prose-p:mb-4 prose-p:text-base
-                prose-strong:text-gray-900 prose-strong:font-bold prose-strong:bg-yellow-50 prose-strong:px-1
-                prose-em:text-gray-800 prose-em:italic prose-em:font-medium
-                prose-ul:text-gray-900 prose-ul:my-5 prose-ul:list-disc prose-ul:pl-6
-                prose-ol:text-gray-900 prose-ol:my-5 prose-ol:list-decimal prose-ol:pl-6
-                prose-li:text-gray-900 prose-li:mb-3 prose-li:leading-relaxed prose-li:text-base
-                prose-blockquote:text-gray-800 prose-blockquote:border-l-8 prose-blockquote:border-blue-500 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:bg-blue-50 prose-blockquote:py-4 prose-blockquote:my-6 prose-blockquote:rounded-r-lg
-                prose-code:text-pink-700 prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:font-semibold prose-code:border prose-code:border-gray-300
-                prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-6 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:shadow-lg prose-pre:my-6
-                prose-a:text-blue-600 prose-a:underline prose-a:font-semibold prose-a:decoration-2 hover:prose-a:text-blue-800 hover:prose-a:bg-blue-50
-                prose-img:rounded-xl prose-img:shadow-xl prose-img:my-6
-                prose-table:border-collapse prose-table:w-full prose-table:my-6 prose-table:shadow-lg prose-table:rounded-lg prose-table:overflow-hidden
-                prose-thead:bg-gradient-to-r prose-thead:from-blue-600 prose-thead:to-blue-500
-                prose-th:border prose-th:border-gray-300 prose-th:p-4 prose-th:text-left prose-th:font-bold prose-th:text-white prose-th:text-base
-                prose-td:border prose-td:border-gray-200 prose-td:p-4 prose-td:text-gray-900 prose-td:bg-white
-                prose-tr:even:bg-gray-50
-                prose-hr:border-gray-300 prose-hr:my-8 prose-hr:border-2"
+                [&_*]:text-gray-900 
+                [&_h1]:!text-4xl [&_h1]:!mb-6 [&_h1]:!mt-8 [&_h1]:!text-gray-900 [&_h1]:!font-black [&_h1]:!border-b-4 [&_h1]:!border-blue-500 [&_h1]:!pb-3
+                [&_h2]:!text-3xl [&_h2]:!mb-5 [&_h2]:!mt-7 [&_h2]:!text-blue-900 [&_h2]:!font-bold [&_h2]:!border-l-4 [&_h2]:!border-blue-500 [&_h2]:!pl-4
+                [&_h3]:!text-2xl [&_h3]:!mb-4 [&_h3]:!mt-6 [&_h3]:!text-blue-800 [&_h3]:!font-bold
+                [&_h4]:!text-xl [&_h4]:!mb-3 [&_h4]:!mt-5 [&_h4]:!text-gray-800 [&_h4]:!font-bold
+                [&_p]:!text-gray-900 [&_p]:!leading-relaxed [&_p]:!mb-4 [&_p]:!text-base [&_p]:!font-medium
+                [&_strong]:!text-gray-900 [&_strong]:!font-black
+                [&_b]:!text-gray-900 [&_b]:!font-black
+                [&_em]:!text-gray-800 [&_em]:!italic [&_em]:!font-semibold
+                [&_ul]:!text-gray-900 [&_ul]:!my-5 [&_ul]:!list-disc [&_ul]:!pl-6
+                [&_ol]:!text-gray-900 [&_ol]:!my-5 [&_ol]:!list-decimal [&_ol]:!pl-6
+                [&_li]:!text-gray-900 [&_li]:!mb-3 [&_li]:!leading-relaxed [&_li]:!text-base [&_li]:!font-medium
+                [&_blockquote]:!text-gray-800 [&_blockquote]:!border-l-8 [&_blockquote]:!border-blue-500 [&_blockquote]:!pl-6 [&_blockquote]:!italic [&_blockquote]:!bg-blue-50 [&_blockquote]:!py-4 [&_blockquote]:!my-6 [&_blockquote]:!rounded-r-lg
+                [&_code]:!text-pink-700 [&_code]:!bg-gray-100 [&_code]:!px-2 [&_code]:!py-1 [&_code]:!rounded [&_code]:!text-sm [&_code]:!font-mono [&_code]:!font-bold [&_code]:!border [&_code]:!border-gray-300
+                [&_pre]:!bg-gray-900 [&_pre]:!text-gray-100 [&_pre]:!p-6 [&_pre]:!rounded-xl [&_pre]:!overflow-x-auto [&_pre]:!shadow-lg [&_pre]:!my-6
+                [&_a]:!text-blue-600 [&_a]:!underline [&_a]:!font-bold [&_a]:!decoration-2 hover:[&_a]:!text-blue-800 hover:[&_a]:!bg-blue-50
+                [&_img]:!rounded-xl [&_img]:!shadow-xl [&_img]:!my-6
+                [&_table]:!border-collapse [&_table]:!w-full [&_table]:!my-6 [&_table]:!shadow-lg [&_table]:!rounded-lg [&_table]:!overflow-hidden
+                [&_thead]:!bg-gradient-to-r [&_thead]:!from-blue-600 [&_thead]:!to-blue-500
+                [&_th]:!border [&_th]:!border-gray-300 [&_th]:!p-4 [&_th]:!text-left [&_th]:!font-bold [&_th]:!text-white [&_th]:!text-base
+                [&_td]:!border [&_td]:!border-gray-200 [&_td]:!p-4 [&_td]:!text-gray-900 [&_td]:!bg-white [&_td]:!font-medium
+                [&_tr:nth-child(even)]:!bg-gray-50
+                [&_hr]:!border-gray-300 [&_hr]:!my-8 [&_hr]:!border-2"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.markdownAnalysis}</ReactMarkdown>
               </div>
@@ -227,8 +271,8 @@ export default function NotePage() {
           {/* Summary */}
           {note.summary && !note.markdownAnalysis && (
             <div className="card-lg mb-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">AI Summary</h2>
-              <p className="text-gray-700 text-sm leading-relaxed">{note.summary}</p>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">AI Summary</h2>
+              <p className="text-gray-900 text-base leading-relaxed font-medium">{note.summary}</p>
             </div>
           )}
 
@@ -246,12 +290,12 @@ export default function NotePage() {
           {/* Key Topics */}
           {note.keyTopics && note.keyTopics.length > 0 && (
             <div className="card-lg">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Key Topics</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Key Topics</h2>
               <div className="flex flex-wrap gap-2">
                 {note.keyTopics.map((topic, index) => (
                   <span
                     key={index}
-                    className="px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-medium"
+                    className="px-4 py-2 bg-gradient-to-r from-violet-100 to-purple-100 text-violet-900 rounded-full text-sm font-bold border-2 border-violet-200"
                   >
                     #{topic}
                   </span>

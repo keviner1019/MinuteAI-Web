@@ -27,6 +27,9 @@ function rowToNote(row: NoteRow): Note {
     markdownAnalysis: row.markdown_analysis || undefined,
     actionItems: (row.action_items || []) as ActionItem[],
     keyTopics: row.key_topics || undefined,
+    // Optional: if the DB row stores attachments or audio_files as JSON/columns
+    attachments: (row as any).attachments || undefined,
+    audioFiles: (row as any).audio_files || undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -205,4 +208,89 @@ export function subscribeToNotes(userId: string, callback: (notes: Note[]) => vo
   return () => {
     subscription.unsubscribe();
   };
+}
+
+/**
+ * Get all action items across all notes for a user
+ * Returns action items with their associated note information
+ */
+export interface ActionItemWithNote extends ActionItem {
+  noteId: string;
+  noteTitle: string;
+  noteCreatedAt: Date;
+}
+
+export async function getAllActionItems(userId: string): Promise<ActionItemWithNote[]> {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('id, title, action_items, created_at')
+    .eq('user_id', userId)
+    .not('action_items', 'is', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching action items:', error);
+    throw new Error(`Failed to fetch action items: ${error.message}`);
+  }
+
+  // Flatten action items from all notes
+  const allActionItems: ActionItemWithNote[] = [];
+  
+  if (data) {
+    for (const note of data) {
+      const actionItems = note.action_items as ActionItem[] || [];
+      for (const item of actionItems) {
+        allActionItems.push({
+          ...item,
+          noteId: note.id,
+          noteTitle: note.title,
+          noteCreatedAt: new Date(note.created_at),
+        });
+      }
+    }
+  }
+
+  return allActionItems;
+}
+
+/**
+ * Update a single action item within a note
+ */
+export async function updateSingleActionItem(
+  noteId: string,
+  actionItemId: string,
+  updates: Partial<ActionItem>
+): Promise<void> {
+  // First, get the current note
+  const note = await getNote(noteId);
+  if (!note || !note.actionItems) {
+    throw new Error('Note or action items not found');
+  }
+
+  // Update the specific action item
+  const updatedItems = note.actionItems.map((item) =>
+    item.id === actionItemId
+      ? { ...item, ...updates, updatedAt: new Date().toISOString() }
+      : item
+  );
+
+  // Save back to database
+  await updateActionItems(noteId, updatedItems);
+}
+
+/**
+ * Delete a single action item from a note
+ */
+export async function deleteSingleActionItem(noteId: string, actionItemId: string): Promise<void> {
+  // First, get the current note
+  const note = await getNote(noteId);
+  if (!note || !note.actionItems) {
+    throw new Error('Note or action items not found');
+  }
+
+  // Remove the specific action item
+  const updatedItems = note.actionItems.filter((item) => item.id !== actionItemId);
+
+  // Save back to database
+  await updateActionItems(noteId, updatedItems);
 }

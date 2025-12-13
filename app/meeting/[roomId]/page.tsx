@@ -1,34 +1,79 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { AudioCall } from '@/components/meeting/AudioCall';
 import { TranscriptPanel } from '@/components/meeting/TranscriptPanel';
 import { Controls } from '@/components/meeting/Controls';
+import { RecordingCountdown } from '@/components/meeting/RecordingCountdown';
+import { VideoDisplay } from '@/components/meeting/VideoDisplay';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useTranscription } from '@/hooks/useTranscription';
-import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { useCompositeRecorder } from '@/hooks/useCompositeRecorder';
+import { createClient } from '@/lib/supabase/client';
 
 export default function MeetingRoom() {
   const params = useParams();
   const roomId = params.roomId as string;
   const [participantJoinedName, setParticipantJoinedName] = useState<string | null>(null);
   const [participantLeftName, setParticipantLeftName] = useState<string | null>(null);
+  const [recordingEnabled, setRecordingEnabled] = useState(false);
+  const [recordingNotification, setRecordingNotification] = useState<{
+    show: boolean;
+    message: string;
+    tone: 'danger' | 'info' | 'warning';
+  }>({ show: false, message: '', tone: 'danger' });
+  const recordingToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showRecordingToast = useCallback(
+    (message: string, tone: 'danger' | 'info' | 'warning' = 'danger') => {
+      if (recordingToastTimeout.current) {
+        clearTimeout(recordingToastTimeout.current);
+      }
+      setRecordingNotification({ show: true, message, tone });
+      recordingToastTimeout.current = setTimeout(() => {
+        setRecordingNotification({ show: false, message: '', tone });
+      }, 3200);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (recordingToastTimeout.current) {
+        clearTimeout(recordingToastTimeout.current);
+      }
+    };
+  }, []);
+  const prevRecordingState = useRef<boolean>(false);
+  const [transcriptionEnabled, setTranscriptionEnabled] = useState(false);
+  const [showTranscriptPanel, setShowTranscriptPanel] = useState(true);
+  const [showRecordingCountdown, setShowRecordingCountdown] = useState(false);
 
   const {
     localStream,
     remoteStream,
     remoteStreamVersion,
+    localVideoStream,
+    remoteVideoStream,
+    isVideoEnabled,
     isConnected,
     isMuted,
+    isRemoteMuted,
+    isRemoteRecording,
     toggleAudio,
+    toggleVideo,
+    sendRecordingState,
     endCall,
     connectionState,
     error,
     meetingId,
     peerLeft,
     remoteUserProfile,
+    isHost,
+    getPeerConnection,
   } = useWebRTC(roomId);
+
 
   // Create a mixed audio stream for transcription (local + remote)
   const [mixedStream, setMixedStream] = useState<MediaStream | null>(null);
@@ -45,9 +90,11 @@ export default function MeetingRoom() {
       return;
     }
 
-    // Mix local and remote audio streams
+    // Mix local and remote audio streams using Web Audio API
+    let audioContext: AudioContext | null = null;
+
     try {
-      const audioContext = new AudioContext();
+      audioContext = new AudioContext();
       const destination = audioContext.createMediaStreamDestination();
 
       // Add local audio
@@ -63,28 +110,200 @@ export default function MeetingRoom() {
       console.error('Failed to mix audio streams:', error);
       setMixedStream(localStream);
     }
+
+    // Cleanup function to close audio context
+    return () => {
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch((err) => console.error('Error closing audio context:', err));
+      }
+    };
   }, [localStream, remoteStream]);
 
   const { transcripts, isTranscribing, startTranscription, stopTranscription } = useTranscription(
-    mixedStream,
+    localStream,
     meetingId
-  );
+  ); // Use localStream only, not mixedStream
 
-  const { isRecording, startRecording, stopRecording } = useAudioRecorder(meetingId);
+  const {
+    isRecording,
+    isSaving: isSavingRecording,
+    startRecording,
+    stopRecording,
+  } = useCompositeRecorder(meetingId);
+  const hasActiveVideo = Boolean(localVideoStream || remoteVideoStream);
+  const canRecord = isHost;
 
-  // Auto-start transcription when mixed stream is ready
   useEffect(() => {
-    if (mixedStream && meetingId && !isTranscribing) {
-      console.log('🎙️ Auto-starting transcription with mixed stream...');
-      console.log(
-        'Mixed stream tracks:',
-        mixedStream
-          .getTracks()
-          .map((t) => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }))
-      );
-      startTranscription();
+    sendRecordingState(isRecording);
+  }, [isRecording, sendRecordingState]);
+
+  useEffect(() => {
+    if (!isRecording && recordingEnabled) {
+      setRecordingEnabled(false);
     }
-  }, [mixedStream, meetingId, isTranscribing, startTranscription]);
+  }, [isRecording, recordingEnabled]);
+
+  const recordingStream = useMemo(() => {
+    const tracks: MediaStreamTrack[] = [];
+
+    if (mixedStream) {
+      mixedStream.getAudioTracks().forEach((track) => tracks.push(track));
+    } else if (localStream) {
+      localStream.getAudioTracks().forEach((track) => tracks.push(track));
+    } else if (remoteStream) {
+      remoteStream.getAudioTracks().forEach((track) => tracks.push(track));
+    }
+
+    const preferredVideoStream =
+      localVideoStream && localVideoStream.getVideoTracks().length > 0
+        ? localVideoStream
+        : remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0
+        ? remoteVideoStream
+        : null;
+
+    if (preferredVideoStream) {
+      preferredVideoStream.getVideoTracks().forEach((track) => tracks.push(track));
+    }
+
+    if (tracks.length === 0) {
+      return null;
+    }
+
+    const combined = new MediaStream();
+    tracks.forEach((track) => combined.addTrack(track));
+    return combined;
+  }, [localStream, mixedStream, remoteStream, localVideoStream, remoteVideoStream]);
+
+  // Auto-start transcription when local stream is available
+  useEffect(() => {
+    if (localStream && meetingId && !transcriptionEnabled) {
+      console.log('Auto-starting transcription with local stream...');
+      startTranscription();
+      setTranscriptionEnabled(true);
+    }
+  }, [localStream, meetingId, transcriptionEnabled, startTranscription]);
+
+  // Handle transcription visibility toggle (transcription always runs, this just shows/hides panel)
+  const handleToggleTranscription = () => {
+    setShowTranscriptPanel(!showTranscriptPanel);
+  };
+
+  // Handle recording toggle with countdown
+  const handleToggleRecording = useCallback(async () => {
+    if (!canRecord) {
+      showRecordingToast('Only the meeting owner can start recordings.', 'warning');
+      return;
+    }
+
+    if (isSavingRecording) {
+      showRecordingToast('Finishing previous recording upload. Please wait...', 'info');
+      return;
+    }
+
+    if (recordingEnabled || isRecording) {
+      await stopRecording();
+      setRecordingEnabled(false);
+      return;
+    }
+
+    if (localStream && meetingId) {
+      // Show countdown before starting
+      setShowRecordingCountdown(true);
+    } else {
+      console.warn('No media stream available for recording');
+      showRecordingToast('No media available to record right now.', 'warning');
+    }
+  }, [
+    canRecord,
+    isSavingRecording,
+    isRecording,
+    localStream,
+    meetingId,
+    recordingEnabled,
+    showRecordingToast,
+    stopRecording,
+  ]);
+
+  // Start recording after countdown
+  const handleCountdownComplete = () => {
+    setShowRecordingCountdown(false);
+    if (!canRecord) return;
+    if (isSavingRecording) {
+      showRecordingToast('Please wait for the current recording to finish uploading.', 'info');
+      return;
+    }
+
+    if (meetingId && (localStream || mixedStream)) {
+      const supabase = createClient();
+
+      // Get local user profile
+      const getLocalProfile = async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          return profile || { display_name: user.email || 'You', avatar_url: null };
+        }
+        return { display_name: 'You', avatar_url: null };
+      };
+
+      getLocalProfile().then((localProfile) => {
+        startRecording(
+          localVideoStream,
+          remoteVideoStream,
+          mixedStream || localStream,
+          {
+            display_name: localProfile?.display_name || undefined,
+            avatar_url: localProfile?.avatar_url || undefined,
+          },
+          remoteUserProfile
+            ? {
+                display_name: remoteUserProfile.display_name || undefined,
+                avatar_url: remoteUserProfile.avatar_url || undefined,
+              }
+            : { display_name: 'Guest', avatar_url: undefined }
+        );
+        setRecordingEnabled(true);
+      });
+    } else {
+      console.warn('No media stream available for recording');
+      showRecordingToast('No media available to record right now.', 'warning');
+    }
+  };
+
+  const handleEndCall = useCallback(async () => {
+    try {
+      if (isRecording || isSavingRecording) {
+        showRecordingToast(
+          isSavingRecording
+            ? 'Finalizing recording upload before ending the meeting...'
+            : 'Stopping recording before ending the meeting...',
+          'info'
+        );
+        await stopRecording();
+        setRecordingEnabled(false);
+      }
+    } catch (error) {
+      console.error('Failed to finalize recording before ending meeting:', error);
+    } finally {
+      await endCall();
+    }
+  }, [endCall, isRecording, isSavingRecording, showRecordingToast, stopRecording]);
+
+  useEffect(() => {
+    return () => {
+      if (isRecording || isSavingRecording) {
+        stopRecording();
+      }
+    };
+  }, [isRecording, isSavingRecording, stopRecording]);
 
   // Show notification when participant joins with their name
   useEffect(() => {
@@ -94,7 +313,7 @@ export default function MeetingRoom() {
       // Hide notification after 3 seconds
       setTimeout(() => setParticipantJoinedName(null), 3000);
     }
-  }, [isConnected, remoteUserProfile]);
+  }, [isConnected, remoteUserProfile, participantJoinedName]);
 
   // Show notification when participant leaves with their name
   useEffect(() => {
@@ -106,18 +325,21 @@ export default function MeetingRoom() {
     }
   }, [peerLeft, remoteUserProfile]);
 
-  // Start recording when local stream is available
+  // Show notification when remote user starts/stops recording
   useEffect(() => {
-    if (localStream && meetingId && !isRecording) {
-      startRecording(localStream);
-    }
+    if (remoteUserProfile && isConnected) {
+      const userName = remoteUserProfile.display_name || 'Participant';
 
-    return () => {
-      if (isRecording) {
-        stopRecording();
+      if (isRemoteRecording !== prevRecordingState.current) {
+        if (isRemoteRecording) {
+          showRecordingToast(`${userName} started recording`, 'danger');
+        } else if (prevRecordingState.current) {
+          showRecordingToast(`${userName} stopped recording`, 'info');
+        }
+        prevRecordingState.current = isRemoteRecording;
       }
-    };
-  }, [localStream, meetingId]);
+    }
+  }, [isRemoteRecording, remoteUserProfile, isConnected, showRecordingToast]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -137,6 +359,37 @@ export default function MeetingRoom() {
           <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2">
             <span className="text-xl">👋</span>
             <span className="font-medium">{participantLeftName} left the meeting</span>
+          </div>
+        </div>
+      )}
+
+      {/* Recording Notification */}
+      {recordingNotification.show && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top">
+          <div
+            className={`flex items-center gap-4 rounded-2xl px-6 py-3 shadow-2xl ${
+              recordingNotification.tone === 'warning'
+                ? 'bg-amber-500/95 text-white'
+                : recordingNotification.tone === 'info'
+                ? 'bg-sky-600/95 text-white'
+                : 'bg-red-600/95 text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="flex h-3 w-3">
+                <span
+                  className={`h-3 w-3 rounded-full ${
+                    recordingNotification.tone === 'warning'
+                      ? 'bg-white'
+                      : recordingNotification.tone === 'info'
+                      ? 'bg-white'
+                      : 'bg-white'
+                  } animate-pulse`}
+                />
+              </span>
+              <p className="text-xs uppercase tracking-[0.3em] opacity-80">Recording</p>
+            </div>
+            <p className="text-sm font-semibold">{recordingNotification.message}</p>
           </div>
         </div>
       )}
@@ -185,19 +438,58 @@ export default function MeetingRoom() {
         </div>
       )}
 
-      {/* Audio Area */}
+      {/* Audio and Video Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <AudioCall
-          localStream={localStream}
-          remoteStream={remoteStream}
-          remoteStreamVersion={remoteStreamVersion}
-          isConnected={isConnected}
-          connectionState={connectionState}
-          remoteUserProfile={remoteUserProfile}
-        />
+        {/* Left: Audio visualization and Video */}
+        <div className="flex-1 flex flex-col p-4 gap-4">
+          {/* Video Section - Show when either local or remote video is enabled */}
+          {hasActiveVideo && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+              {/* Local Video */}
+              <div className="relative">
+                <VideoDisplay
+                  stream={localVideoStream}
+                  isMuted={isMuted}
+                  isLocal={true}
+                  userName="You"
+                  userAvatar={null}
+                />
+              </div>
 
-        {/* Transcript Sidebar */}
-        <TranscriptPanel transcripts={transcripts} isTranscribing={isTranscribing} />
+              {/* Remote Video */}
+              <div className="relative">
+                <VideoDisplay
+                  stream={remoteVideoStream}
+                  isMuted={isRemoteMuted}
+                  isLocal={false}
+                  userName={remoteUserProfile?.display_name || 'Guest'}
+                  userAvatar={remoteUserProfile?.avatar_url}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Audio Visualization - Only show when no video */}
+          {!hasActiveVideo && (
+            <div className="flex-1 flex">
+              <AudioCall
+                localStream={localStream}
+                remoteStream={remoteStream}
+                remoteStreamVersion={remoteStreamVersion}
+                isConnected={isConnected}
+                connectionState={connectionState}
+                remoteUserProfile={remoteUserProfile}
+                isRemoteMuted={isRemoteMuted}
+                showVideoLayout={false}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Transcript Sidebar - Only show when toggled on */}
+        {showTranscriptPanel && (
+          <TranscriptPanel transcripts={transcripts} isTranscribing={isTranscribing} />
+        )}
       </div>
 
       {/* Controls - Fixed at bottom */}
@@ -205,11 +497,24 @@ export default function MeetingRoom() {
         <Controls
           isMuted={isMuted}
           isTranscribing={isTranscribing}
+          showTranscriptPanel={showTranscriptPanel}
+          isRecording={isRecording}
+          isSavingRecording={isSavingRecording}
+          canRecord={canRecord}
+          isHost={isHost}
+          isVideoEnabled={isVideoEnabled}
+          isRemoteRecording={isRemoteRecording}
           onToggleAudio={toggleAudio}
-          onEndCall={endCall}
+          onToggleTranscription={handleToggleTranscription}
+          onToggleRecording={handleToggleRecording}
+          onToggleVideo={toggleVideo}
+          onEndCall={handleEndCall}
           roomId={roomId}
         />
       </div>
+
+      {/* Recording Countdown */}
+      {showRecordingCountdown && <RecordingCountdown onComplete={handleCountdownComplete} />}
     </div>
   );
 }

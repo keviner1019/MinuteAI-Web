@@ -39,7 +39,9 @@ export default function ActionItemCard({
 }: ActionItemCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(item.text);
-  const [editPriority, setEditPriority] = useState(item.priority || 'medium'); // Default to medium if missing
+  const [editPriority, setEditPriority] = useState<'high' | 'medium' | 'low' | ''>(
+    item.priority || ''
+  ); // Empty for no priority
   const [editDeadline, setEditDeadline] = useState(item.deadline || '');
 
   // Safely access priority with fallback to 'medium'
@@ -52,7 +54,7 @@ export default function ActionItemCard({
 
     onUpdate(item.id, {
       text: editText.trim(),
-      priority: editPriority,
+      priority: editPriority || undefined, // Only set if not empty
       deadline: editDeadline || undefined,
     });
     setIsEditing(false);
@@ -60,7 +62,7 @@ export default function ActionItemCard({
 
   const handleCancel = () => {
     setEditText(item.text);
-    setEditPriority(item.priority || 'medium');
+    setEditPriority(item.priority || '');
     setEditDeadline(item.deadline || '');
     setIsEditing(false);
   };
@@ -106,7 +108,7 @@ export default function ActionItemCard({
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 placeholder="Enter action item text..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 rows={2}
                 autoFocus
               />
@@ -115,10 +117,13 @@ export default function ActionItemCard({
               <div className="flex items-center gap-2 flex-wrap">
                 <select
                   value={editPriority}
-                  onChange={(e) => setEditPriority(e.target.value as 'high' | 'medium' | 'low')}
+                  onChange={(e) =>
+                    setEditPriority(e.target.value as 'high' | 'medium' | 'low' | '')
+                  }
                   title="Select priority"
-                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="">No Priority</option>
                   <option value="high">High Priority</option>
                   <option value="medium">Medium Priority</option>
                   <option value="low">Low Priority</option>
@@ -130,7 +135,7 @@ export default function ActionItemCard({
                   onChange={(e) => setEditDeadline(e.target.value)}
                   title="Set deadline"
                   placeholder="Set deadline"
-                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -160,13 +165,15 @@ export default function ActionItemCard({
 
               {/* Meta Info */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Priority Badge */}
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
-                  {config.label}
-                </span>
+                {/* Priority Badge - only show if priority is explicitly set */}
+                {item.priority && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+                    {config.label}
+                  </span>
+                )}
 
                 {/* Deadline */}
                 {item.deadline && (

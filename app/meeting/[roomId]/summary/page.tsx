@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -21,23 +21,30 @@ interface Transcript {
   confidence: number;
 }
 
+interface Recording {
+  id: string;
+  audio_url: string | null;
+  duration: number | null;
+  file_size: number | null;
+  format: string | null;
+  created_at: string;
+  status?: 'uploading' | 'completed' | 'failed' | null;
+  recorded_by?: string | null;
+}
+
 export default function MeetingSummary() {
   const params = useParams();
-  const router = useRouter();
   const roomId = params.roomId as string;
   const [meeting, setMeeting] = useState<any>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   const supabase = createClient();
 
-  useEffect(() => {
-    loadData();
-  }, [roomId]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       console.log('🔍 Loading data for room:', roomId);
 
@@ -73,6 +80,21 @@ export default function MeetingSummary() {
         setTranscripts(transcriptData || []);
       }
 
+      // Load recordings
+      console.log('🔍 Loading recordings for meeting:', (meetingData as any).id);
+      const { data: recordingData, error: recordingError } = await supabase
+        .from('meeting_audio')
+        .select('*')
+        .eq('meeting_id', (meetingData as any).id)
+        .order('created_at', { ascending: false });
+
+      if (recordingError) {
+        console.error('❌ Error loading recordings:', recordingError);
+      } else {
+        console.log('✅ Recordings loaded:', recordingData?.length || 0);
+        setRecordings((recordingData as Recording[]) || []);
+      }
+
       // Load summary if exists - use maybeSingle() instead of single()
       console.log('🔍 Loading summary for meeting:', (meetingData as any).id);
       const { data: summaryData, error: summaryError } = await supabase
@@ -100,7 +122,11 @@ export default function MeetingSummary() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [roomId, supabase]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function generateSummary() {
     if (!meeting) return;
@@ -141,6 +167,28 @@ export default function MeetingSummary() {
     a.download = `meeting_${roomId}_transcript.txt`;
     a.click();
   }
+
+  const formatDuration = (duration: number | null) => {
+    if (!duration || duration <= 0) return '—';
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    if (minutes === 0) {
+      return `${seconds}s`;
+    }
+    return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes || bytes <= 0) return '—';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const size = bytes / Math.pow(1024, index);
+    return `${size.toFixed(1)} ${units[index]}`;
+  };
+
+  const hasPendingRecordings = recordings.some(
+    (recording) => recording.status && recording.status !== 'completed'
+  );
 
   if (loading) {
     return (
@@ -238,6 +286,127 @@ export default function MeetingSummary() {
               {transcripts.length === 0
                 ? 'No transcripts available for this meeting'
                 : 'Click "Generate Summary" to create an AI-powered summary'}
+            </p>
+          )}
+        </div>
+
+        {/* Recordings Section */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Meeting Recordings</h2>
+            {recordings.length > 0 && (
+              <span className="text-sm text-gray-500">{recordings.length} file(s)</span>
+            )}
+          </div>
+
+          {hasPendingRecordings && (
+            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4">
+              <Loader2 className="animate-spin" size={16} />
+              <span>Some recordings are still uploading. Refresh this page after a moment.</span>
+            </div>
+          )}
+
+          {recordings.length > 0 ? (
+            <div className="space-y-4">
+              {recordings.map((recording) => {
+                const status = recording.status || 'completed';
+                const statusBadgeClass =
+                  status === 'uploading'
+                    ? 'bg-amber-100 text-amber-700'
+                    : status === 'failed'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-green-100 text-green-700';
+                const statusLabel =
+                  status === 'uploading'
+                    ? 'Uploading'
+                    : status === 'failed'
+                    ? 'Failed'
+                    : 'Completed';
+                const canPlayMedia = status === 'completed' && Boolean(recording.audio_url);
+                const formatLabel =
+                  recording.format && recording.format.includes('/')
+                    ? recording.format.split('/').join(' · ')
+                    : recording.format;
+
+                const recordedBy =
+                  recording.recorded_by && meeting
+                    ? recording.recorded_by === (meeting as any).host_id
+                      ? 'Host'
+                      : recording.recorded_by === (meeting as any).guest_id
+                      ? 'Guest'
+                      : 'Participant'
+                    : null;
+
+                return (
+                  <div
+                    key={recording.id}
+                    className="border border-gray-100 rounded-lg p-4 flex flex-col gap-4 md:flex-row md:items-center md:gap-6"
+                  >
+                    <div className="flex-1">
+                      <p className="text-gray-900 font-medium">
+                        Recorded on {new Date(recording.created_at).toLocaleString()}
+                      </p>
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
+                        <span>Duration: {formatDuration(recording.duration)}</span>
+                        <span>Size: {formatFileSize(recording.file_size)}</span>
+                        {formatLabel && <span className="uppercase">{formatLabel}</span>}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 items-center text-xs font-semibold">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full ${statusBadgeClass}`}>
+                          {statusLabel}
+                        </span>
+                        {recordedBy && (
+                          <span className="text-gray-500 normal-case">Recorded by {recordedBy}</span>
+                        )}
+                      </div>
+                      {status === 'uploading' && (
+                        <p className="text-amber-700 text-sm mt-2 flex items-center gap-2">
+                          <Loader2 className="animate-spin" size={16} />
+                          Upload in progress. This recording will appear when processing finishes.
+                        </p>
+                      )}
+                      {status === 'failed' && (
+                        <p className="text-red-600 text-sm mt-2">
+                          Upload failed. Please rejoin the meeting and try recording again.
+                        </p>
+                      )}
+                    </div>
+                    <div className="md:w-64 flex flex-col gap-2">
+                      {canPlayMedia ? (
+                        recording.format?.includes('video') ? (
+                          <video
+                            controls
+                            src={recording.audio_url || undefined}
+                            className="w-full rounded-lg bg-black"
+                          />
+                        ) : (
+                          <audio controls src={recording.audio_url || undefined} className="w-full" />
+                        )
+                      ) : (
+                        <div className="text-sm text-gray-500 text-center border border-dashed border-gray-200 rounded-lg py-6">
+                          {status === 'uploading'
+                            ? 'Upload in progress...'
+                            : 'Recording unavailable.'}
+                        </div>
+                      )}
+                      {canPlayMedia && recording.audio_url && (
+                        <a
+                          href={recording.audio_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium text-center"
+                        >
+                          Download recording
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-6">
+              No recordings were saved for this meeting.
             </p>
           )}
         </div>

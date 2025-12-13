@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
+import { ActionItem } from '@/types';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY!);
+// Lazy initialization to avoid build-time errors when env vars are not available
+function getDeepSeekClient() {
+  return new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY!,
+    baseURL: 'https://api.deepseek.com',
+  });
+}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
@@ -26,81 +33,157 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const transcriptTexts = transcripts.map((t: any) => t.text);
     const fullTranscript = transcriptTexts.join('\n');
 
-    // Generate summary using Gemini Flash 1.5 (same model used for audio)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
+    // Generate summary using DeepSeek
     const prompt = `
-You are an AI assistant that creates concise meeting summaries.
+You are an AI assistant that creates comprehensive meeting summaries with actionable tasks.
 
 Analyze the following meeting transcript and provide:
-1. A brief summary (2-3 sentences)
-2. Key discussion points (bullet points)
-3. Action items (if any)
-4. Overall sentiment (positive/neutral/negative)
 
-Transcript:
-${fullTranscript}
+1. **Summary**: A brief but comprehensive summary (3-4 sentences) that captures the main discussion points and outcomes.
+
+2. **Key Discussion Points**: List 4-6 main discussion points or topics covered (bullet points).
+
+3. **Action Items**: Extract SPECIFIC and ACTIONABLE tasks with PRIORITIES. Each action item MUST include:
+
+   **Format** (as JSON object):
+   {
+     "text": "Clear description of what needs to be done",
+     "priority": "high" | "medium" | "low",
+     "assignee": "WHO should do it (if mentioned, otherwise 'Unassigned')",
+     "deadline": "WHEN it should be done (if mentioned, otherwise null)"
+   }
+
+   **Priority Guidelines**:
+   - HIGH: Urgent decisions, immediate blockers, critical deadlines within days
+   - MEDIUM: Important follow-ups, tasks with weekly deadlines, standard deliverables
+   - LOW: Nice to have, long-term tasks, informational follow-ups
+
+   **Action Item Best Practices**:
+   - Start with action verbs (Schedule, Send, Complete, Review, Follow up, Prepare, etc.)
+   - Include WHO (if mentioned: "Sarah to...", "Engineering team to...")
+   - Include WHAT (specific task with context)
+   - Include WHEN (if deadline was mentioned: "by Friday", "next week")
+
+   **Examples**:
+   - { "text": "Sarah to send updated proposal to client by Friday", "priority": "high", "assignee": "Sarah", "deadline": "Friday" }
+   - { "text": "Schedule follow-up meeting with stakeholders for next week", "priority": "medium", "assignee": "Unassigned", "deadline": "next week" }
+   - { "text": "Engineering team to review technical requirements and provide estimates", "priority": "medium", "assignee": "Engineering team", "deadline": null }
+
+4. **Decisions Made**: List any key decisions or conclusions reached during the meeting.
+
+5. **Overall Sentiment**: Assess the overall meeting sentiment (positive/neutral/negative/mixed) with a brief explanation.
 
 Format your response as JSON:
 {
-  "summary": "brief summary here",
-  "keyPoints": ["point 1", "point 2", ...],
-  "actionItems": ["action 1", "action 2", ...],
-  "sentiment": "positive/neutral/negative"
+  "summary": "comprehensive meeting summary",
+  "keyPoints": ["discussion point 1", "discussion point 2", ...],
+  "actionItems": [
+    {
+      "text": "specific action with owner and deadline",
+      "priority": "high" | "medium" | "low",
+      "assignee": "person or team name",
+      "deadline": "deadline if mentioned or null"
+    }
+  ],
+  "decisions": ["decision 1", "decision 2", ...],
+  "sentiment": "positive/neutral/negative/mixed",
+  "sentimentExplanation": "brief explanation of the sentiment"
 }
+
+Transcript:
+${fullTranscript}
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const deepseek = getDeepSeekClient();
+    const completion = await deepseek.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a helpful assistant that analyzes meeting transcripts and provides structured JSON responses. Always respond with valid JSON only.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 4096,
+    });
+
+    const text = completion.choices[0]?.message?.content || '';
 
     // Parse JSON response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to parse AI response');
+    let analysis;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Failed to extract JSON from AI response');
+      }
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('Failed to parse meeting summary:', parseError);
+      console.error('Raw response:', text.substring(0, 500));
+      // Fallback
+      analysis = {
+        summary: text.substring(0, 500),
+        keyPoints: [],
+        actionItems: [],
+        decisions: [],
+        sentiment: 'neutral',
+        sentimentExplanation: '',
+      };
     }
 
-    const summary = JSON.parse(jsonMatch[0]);
+    // Convert action items to proper format with priorities
+    const actionItems: ActionItem[] = (analysis.actionItems || []).map(
+      (item: any, index: number) => {
+        if (typeof item === 'string') {
+          return {
+            id: `meeting-action-${index}`,
+            text: item,
+            completed: false,
+            priority: 'medium',
+          };
+        } else {
+          return {
+            id: `meeting-action-${index}`,
+            text: item.text || item,
+            completed: false,
+            priority: item.priority || 'medium',
+            deadline: item.deadline || undefined,
+          };
+        }
+      }
+    );
 
-    // Save summary to database
-    const { data: savedSummary, error: saveError } = await supabase
-      .from('meeting_summaries')
-      .insert({
-        meeting_id: meetingId,
-        summary: summary.summary,
-        key_points: summary.keyPoints,
-        action_items: summary.actionItems,
-        sentiment: summary.sentiment,
-      } as any)
-      .select()
-      .single();
+    // Update meeting with summary
+    try {
+      await (supabase as any)
+        .from('meetings')
+        .update({
+          summary: analysis.summary || text.substring(0, 500),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', meetingId);
+    } catch (updateError) {
+      console.error('Failed to update meeting:', updateError);
+      // Don't throw, just log - summary generation succeeded
+    }
 
-    if (saveError) throw saveError;
-
-    return NextResponse.json({ summary: savedSummary });
+    return NextResponse.json({
+      summary: analysis.summary,
+      keyPoints: analysis.keyPoints || [],
+      actionItems,
+      decisions: analysis.decisions || [],
+      sentiment: analysis.sentiment || 'neutral',
+      sentimentExplanation: analysis.sentimentExplanation || '',
+    });
   } catch (error: any) {
-    console.error('Summarization error:', error);
+    console.error('Meeting summarization error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to generate summary' },
       { status: 500 }
     );
-  }
-}
-
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const supabase = createServerClient();
-
-    const { data: summary, error } = await supabase
-      .from('meeting_summaries')
-      .select('*')
-      .eq('meeting_id', params.id)
-      .single();
-
-    if (error) throw error;
-
-    return NextResponse.json({ summary });
-  } catch (error) {
-    return NextResponse.json({ error: 'Summary not found' }, { status: 404 });
   }
 }

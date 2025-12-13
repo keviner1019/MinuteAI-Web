@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     noteId = body.noteId;
     const audioUrl = body.audioUrl;
+    const skipAIAnalysis = body.skipAIAnalysis || false; // Flag to skip AI analysis for batching
 
     if (!noteId || !audioUrl) {
       return NextResponse.json({ error: 'Missing noteId or audioUrl' }, { status: 400 });
@@ -23,6 +24,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Starting transcription for note:', noteId);
+
+    // NOTE: For multiple audio files in a single note, this endpoint should be called
+    // separately for each audio file, then the AI analysis should combine transcripts.
+    // AssemblyAI's Universal model automatically detects language and handles code-switching.
+    // The analysis API can then merge transcripts by language or timestamps as needed.
 
     // Start transcription with Universal model
     // Features enabled:
@@ -56,22 +62,38 @@ export async function POST(request: NextRequest) {
     let transcriptSegments: any[] = [];
 
     if (transcript.utterances && transcript.utterances.length > 0) {
-      // Create formatted transcript with speaker labels
-      formattedTranscript = transcript.utterances
-        .map((utterance) => `Speaker ${utterance.speaker}: ${utterance.text}`)
-        .join('\n\n');
+      // Count unique speakers
+      const uniqueSpeakers = new Set(transcript.utterances.map((u) => u.speaker)).size;
+      const hasMultipleSpeakers = uniqueSpeakers > 1;
+
+      // Create formatted transcript - only show speaker labels if multiple speakers
+      if (hasMultipleSpeakers) {
+        formattedTranscript = transcript.utterances
+          .map((utterance) => `Speaker ${utterance.speaker}: ${utterance.text}`)
+          .join('\n\n');
+      } else {
+        // Single speaker - just combine the text without labels
+        formattedTranscript = transcript.utterances.map((utterance) => utterance.text).join(' ');
+      }
 
       // Create transcript segments with accurate timestamps from AssemblyAI
+      // ALWAYS include speaker labels in segments (for UI display)
+      // Include word-level timestamps for interactive transcript feature
       transcriptSegments = transcript.utterances.map((utterance, index) => ({
         id: `segment-${index}`,
         text: utterance.text,
         start: utterance.start / 1000, // Convert milliseconds to seconds
         end: utterance.end / 1000, // Convert milliseconds to seconds
-        speaker: `Speaker ${utterance.speaker}`,
+        speaker: `Speaker ${utterance.speaker}`, // Always include speaker label
         confidence: utterance.confidence || 0.95,
+        words: utterance.words || [], // Include word-level data for interactive clicking
       }));
 
-      console.log('Formatted transcript with speaker labels');
+      console.log(
+        `Formatted transcript with ${
+          hasMultipleSpeakers ? 'speaker labels' : 'no speaker labels (single speaker)'
+        }`
+      );
       console.log(
         'Created',
         transcriptSegments.length,
@@ -126,23 +148,31 @@ export async function POST(request: NextRequest) {
     console.log('Note updated successfully:', data[0]);
 
     // Trigger AI analysis automatically (don't await - let it run in background)
-    console.log('Triggering AI analysis for note:', noteId);
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://minute-ai-web.vercel.app'}/api/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ noteId, transcript: formattedTranscript }),
-    })
-      .then(async (res) => {
-        if (res.ok) {
-          console.log('AI analysis triggered successfully for note:', noteId);
-        } else {
-          const error = await res.json();
-          console.error('AI analysis failed:', error);
+    // Skip if this is part of a batch upload
+    if (!skipAIAnalysis) {
+      console.log('Triggering AI analysis for note:', noteId);
+      fetch(
+        `${process.env.NEXT_PUBLIC_SITE_URL || 'https://minute-ai-web.vercel.app'}/api/analyze`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noteId, transcript: formattedTranscript }),
         }
-      })
-      .catch((err) => {
-        console.error('Failed to trigger AI analysis:', err);
-      });
+      )
+        .then(async (res) => {
+          if (res.ok) {
+            console.log('AI analysis triggered successfully for note:', noteId);
+          } else {
+            const error = await res.json();
+            console.error('AI analysis failed:', error);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to trigger AI analysis:', err);
+        });
+    } else {
+      console.log('Skipping AI analysis - will be batched later');
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,13 +1,34 @@
 'use client';
 
-import { Mic, MicOff, PhoneOff, FileText, Copy, Check, Link as LinkIcon, Hash } from 'lucide-react';
+import {
+  Mic,
+  MicOff,
+  PhoneOff,
+  FileText,
+  UserPlus,
+  Radio,
+  StopCircle,
+  Video,
+  VideoOff,
+} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { InviteModal } from './InviteModal';
 
 interface ControlsProps {
   isMuted: boolean;
   isTranscribing: boolean;
+  showTranscriptPanel: boolean;
+  isRecording: boolean;
+  isSavingRecording?: boolean;
+  isVideoEnabled?: boolean;
+  isRemoteRecording?: boolean;
+  canRecord?: boolean;
+  isHost?: boolean;
   onToggleAudio: () => void;
+  onToggleTranscription: () => void;
+  onToggleRecording: () => void;
+  onToggleVideo?: () => void;
   onEndCall: () => void;
   roomId?: string;
 }
@@ -15,15 +36,36 @@ interface ControlsProps {
 export function Controls({
   isMuted,
   isTranscribing,
+  showTranscriptPanel,
+  isRecording,
+  isSavingRecording = false,
+  isVideoEnabled,
+  isRemoteRecording,
+  canRecord = true,
+  isHost = false,
   onToggleAudio,
+  onToggleTranscription,
+  onToggleRecording,
+  onToggleVideo,
   onEndCall,
   roomId,
 }: ControlsProps) {
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
   const [meetingCode, setMeetingCode] = useState<string | null>(null);
-  const [showInviteMenu, setShowInviteMenu] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const supabase = createClient();
+
+  const handleEndCall = () => {
+    if (isHost) {
+      const confirmed = window.confirm(
+        'Are you sure you want to end this meeting? This will end the meeting for all participants.'
+      );
+      if (confirmed) {
+        onEndCall();
+      }
+    } else {
+      onEndCall();
+    }
+  };
 
   // Fetch meeting code when component mounts
   useEffect(() => {
@@ -56,110 +98,30 @@ export function Controls({
     }
   };
 
-  const copyRoomLink = () => {
-    const link = `${window.location.origin}/meeting/${roomId}`;
-    navigator.clipboard.writeText(link);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  const copyMeetingCode = () => {
-    if (meetingCode) {
-      navigator.clipboard.writeText(meetingCode);
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
-    }
-  };
-
   return (
     <div className="bg-white border-t border-gray-200 px-6 py-4 flex justify-between items-center shadow-lg">
       {/* Left: Room Info & Invite Options */}
       <div className="flex items-center gap-3">
         {roomId && (
-          <div className="relative">
-            <button
-              onClick={() => setShowInviteMenu(!showInviteMenu)}
-              className="btn-primary text-sm flex items-center gap-2"
-            >
-              <Copy size={16} />
-              Invite Participants
-            </button>
-
-            {/* Invite Menu Dropdown */}
-            {showInviteMenu && (
-              <div className="absolute bottom-full left-0 mb-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50">
-                <div className="space-y-4">
-                  {/* Meeting Code */}
-                  {meetingCode && (
-                    <div>
-                      <label className="text-xs text-gray-600 mb-1 block flex items-center gap-1 font-medium">
-                        <Hash size={14} />
-                        Meeting Code
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-50 border border-gray-200 rounded px-3 py-2 text-gray-900 font-mono text-lg tracking-wider">
-                          {meetingCode}
-                        </div>
-                        <button
-                          onClick={copyMeetingCode}
-                          className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition text-gray-700"
-                          title="Copy code"
-                        >
-                          {copiedCode ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Share this code with participants
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Meeting Link */}
-                  <div>
-                    <label className="text-xs text-gray-600 mb-1 block flex items-center gap-1 font-medium">
-                      <LinkIcon size={14} />
-                      Meeting Link
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-gray-50 border border-gray-200 rounded px-3 py-2 text-gray-900 text-sm truncate">
-                        {`${
-                          typeof window !== 'undefined' ? window.location.origin : ''
-                        }/meeting/${roomId}`}
-                      </div>
-                      <button
-                        onClick={copyRoomLink}
-                        className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition text-gray-700"
-                        title="Copy link"
-                      >
-                        {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Or share the direct link</p>
-                  </div>
-
-                  {/* Join Instructions */}
-                  <div className="pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-600">
-                      Participants can join at:{' '}
-                      <span className="text-blue-600 font-medium">
-                        {typeof window !== 'undefined' ? window.location.origin : ''}/join
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Close button */}
-                <button
-                  onClick={() => setShowInviteMenu(false)}
-                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="btn-primary text-sm flex items-center gap-2"
+          >
+            <UserPlus size={16} />
+            Invite
+          </button>
         )}
       </div>
+
+      {/* Invite Modal */}
+      {roomId && (
+        <InviteModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          roomId={roomId}
+          meetingCode={meetingCode}
+        />
+      )}
 
       {/* Center: Main Controls */}
       <div className="flex justify-center items-center gap-4">
@@ -178,11 +140,75 @@ export function Controls({
           )}
         </button>
 
+        {/* Video Toggle */}
+        {onToggleVideo && (
+          <button
+            onClick={onToggleVideo}
+            className={`p-4 rounded-full transition shadow-md ${
+              isVideoEnabled ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+            title={isVideoEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
+          >
+            {isVideoEnabled ? (
+              <Video size={24} className="text-white" />
+            ) : (
+              <VideoOff size={24} className="text-white" />
+            )}
+          </button>
+        )}
+
+        {/* Recording Toggle */}
+        <button
+          onClick={onToggleRecording}
+          disabled={!canRecord || (!isRecording && isRemoteRecording) || isSavingRecording}
+          className={`p-4 rounded-full transition shadow-md ${
+            isRecording
+              ? 'bg-red-500 hover:bg-red-600'
+              : !canRecord
+              ? 'bg-gray-400 cursor-not-allowed opacity-50'
+              : isSavingRecording
+              ? 'bg-gray-400 cursor-wait opacity-50'
+              : isRemoteRecording
+              ? 'bg-gray-400 cursor-not-allowed opacity-50'
+              : 'bg-gray-700 hover:bg-gray-600'
+          }`}
+          title={
+            !canRecord
+              ? 'Only the meeting owner can record'
+              : isSavingRecording
+              ? 'Finishing previous recording upload'
+              : isRemoteRecording && !isRecording
+              ? 'Another participant is recording'
+              : isRecording
+              ? 'Stop Recording'
+              : 'Start Recording'
+          }
+        >
+          {isRecording ? (
+            <StopCircle size={24} className="text-white" />
+          ) : (
+            <Radio size={24} className="text-white" />
+          )}
+        </button>
+
+        {/* Transcription Panel Toggle */}
+        <button
+          onClick={onToggleTranscription}
+          className={`p-4 rounded-full transition shadow-md ${
+            showTranscriptPanel
+              ? 'bg-green-500 hover:bg-green-600'
+              : 'bg-gray-700 hover:bg-gray-600'
+          }`}
+          title={showTranscriptPanel ? 'Hide Transcript Panel' : 'Show Transcript Panel'}
+        >
+          <FileText size={24} className="text-white" />
+        </button>
+
         {/* End Call */}
         <button
-          onClick={onEndCall}
+          onClick={handleEndCall}
           className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition shadow-md"
-          title="End call"
+          title={isHost ? 'End meeting for all' : 'Leave meeting'}
         >
           <PhoneOff size={24} className="text-white" />
         </button>
@@ -190,10 +216,22 @@ export function Controls({
 
       {/* Right: Status */}
       <div className="flex items-center gap-3">
+          {isSavingRecording && (
+            <div className="flex items-center gap-2 text-amber-700 text-sm font-medium bg-amber-50 px-3 py-2 rounded-full border border-amber-200">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
+              Saving recording...
+            </div>
+          )}
+        {(isRecording || isRemoteRecording) && (
+          <div className="flex items-center gap-2 text-red-700 text-sm font-medium bg-red-50 px-3 py-2 rounded-full border border-red-200">
+            <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+            {isRecording && isRemoteRecording ? 'Both Recording' : 'Recording'}
+          </div>
+        )}
         {isTranscribing && (
           <div className="flex items-center gap-2 text-green-700 text-sm font-medium bg-green-50 px-3 py-2 rounded-full border border-green-200">
             <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
-            Live Transcription Active
+            Live Transcription
           </div>
         )}
       </div>

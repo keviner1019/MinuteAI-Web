@@ -28,6 +28,7 @@ export class SignalingService {
   private pusher: Pusher;
   private channel: any;
   private roomId: string;
+  private myUserId: string | null = null;
 
   // Callback for when channel is connected
   onConnected?: () => void;
@@ -35,6 +36,10 @@ export class SignalingService {
   constructor(roomId: string) {
     this.roomId = roomId;
     this.pusher = getPusherInstance();
+  }
+
+  setMyUserId(userId: string) {
+    this.myUserId = userId;
   }
 
   connect() {
@@ -68,87 +73,156 @@ export class SignalingService {
     this.channel.bind('pusher:subscription_error', (error: any) => {
       console.error('❌ Failed to connect to signaling channel:', error);
     });
-  } // Send offer to peer
-  sendOffer(offer: RTCSessionDescriptionInit) {
-    console.log('📤 Sending offer...');
-    this.channel.trigger('client-offer', { offer });
   }
 
-  // Send answer to peer
-  sendAnswer(answer: RTCSessionDescriptionInit) {
-    console.log('📤 Sending answer...');
-    this.channel.trigger('client-answer', { answer });
+  // =====================================================
+  // Multi-user targeted signaling
+  // =====================================================
+
+  // Send offer to specific user
+  sendOffer(offer: RTCSessionDescriptionInit, targetUserId: string): boolean {
+    console.log('📤 Sending offer to:', targetUserId);
+    const payload = JSON.stringify({ offer, targetUserId, fromUserId: this.myUserId });
+
+    if (payload.length > 9000) {
+      console.warn('⚠️ Offer too large for Pusher, instructing peer to use data channel');
+      this.channel.trigger('client-offer-ready', {
+        useDataChannel: true,
+        targetUserId,
+        fromUserId: this.myUserId
+      });
+      return false;
+    }
+
+    this.channel.trigger('client-offer', {
+      offer,
+      targetUserId,
+      fromUserId: this.myUserId
+    });
+    return true;
   }
 
-  // Send ICE candidate
-  sendIceCandidate(candidate: RTCIceCandidate) {
-    console.log('📤 Sending ICE candidate...');
-    this.channel.trigger('client-ice-candidate', { candidate });
+  // Send answer to specific user
+  sendAnswer(answer: RTCSessionDescriptionInit, targetUserId: string): boolean {
+    console.log('📤 Sending answer to:', targetUserId);
+    const payload = JSON.stringify({ answer, targetUserId, fromUserId: this.myUserId });
+
+    if (payload.length > 9000) {
+      console.warn('⚠️ Answer too large for Pusher, instructing peer to use data channel');
+      this.channel.trigger('client-answer-ready', {
+        useDataChannel: true,
+        targetUserId,
+        fromUserId: this.myUserId
+      });
+      return false;
+    }
+
+    this.channel.trigger('client-answer', {
+      answer,
+      targetUserId,
+      fromUserId: this.myUserId
+    });
+    return true;
   }
 
-  // Listen for offer
-  onOffer(callback: (offer: RTCSessionDescriptionInit) => void) {
+  // Send ICE candidate to specific user
+  sendIceCandidate(candidate: RTCIceCandidate, targetUserId: string) {
+    console.log('📤 Sending ICE candidate to:', targetUserId);
+    this.channel.trigger('client-ice-candidate', {
+      candidate,
+      targetUserId,
+      fromUserId: this.myUserId
+    });
+  }
+
+  // Listen for offer (only process if targeted to me)
+  onOffer(callback: (offer: RTCSessionDescriptionInit, fromUserId: string) => void) {
     if (!this.channel) {
       console.error('❌ Cannot bind offer: channel not initialized');
       return;
     }
 
-    // Unbind first to prevent duplicate handlers
     this.channel.unbind('client-offer');
 
     this.channel.bind('client-offer', (data: any) => {
-      console.log('📥 Received offer');
-      callback(data.offer);
+      // Only process if targeted to me
+      if (data.targetUserId !== this.myUserId) {
+        console.log('⏭️ Ignoring offer not meant for me');
+        return;
+      }
+      console.log('📥 Received offer from:', data.fromUserId);
+      callback(data.offer, data.fromUserId);
     });
 
     console.log('✅ Offer handler registered');
   }
 
-  // Listen for answer
-  onAnswer(callback: (answer: RTCSessionDescriptionInit) => void) {
+  // Listen for answer (only process if targeted to me)
+  onAnswer(callback: (answer: RTCSessionDescriptionInit, fromUserId: string) => void) {
     if (!this.channel) {
       console.error('❌ Cannot bind answer: channel not initialized');
       return;
     }
 
-    // Unbind first to prevent duplicate handlers
     this.channel.unbind('client-answer');
 
     this.channel.bind('client-answer', (data: any) => {
-      console.log('📥 Received answer');
-      callback(data.answer);
+      // Only process if targeted to me
+      if (data.targetUserId !== this.myUserId) {
+        console.log('⏭️ Ignoring answer not meant for me');
+        return;
+      }
+      console.log('📥 Received answer from:', data.fromUserId);
+      callback(data.answer, data.fromUserId);
     });
 
     console.log('✅ Answer handler registered');
   }
 
-  // Listen for ICE candidate
-  onIceCandidate(callback: (candidate: RTCIceCandidateInit) => void) {
+  // Listen for ICE candidate (only process if targeted to me)
+  onIceCandidate(callback: (candidate: RTCIceCandidateInit, fromUserId: string) => void) {
     if (!this.channel) {
       console.error('❌ Cannot bind ice-candidate: channel not initialized');
       return;
     }
 
-    // Unbind first to prevent duplicate handlers
     this.channel.unbind('client-ice-candidate');
 
     this.channel.bind('client-ice-candidate', (data: any) => {
-      console.log('📥 Received ICE candidate');
-      callback(data.candidate);
+      // Only process if targeted to me
+      if (data.targetUserId !== this.myUserId) {
+        return; // Silent ignore for ICE candidates
+      }
+      console.log('📥 Received ICE candidate from:', data.fromUserId);
+      callback(data.candidate, data.fromUserId);
     });
 
     console.log('✅ ICE candidate handler registered');
   }
 
-  // Send user joined event
-  sendUserJoined(sessionId: string) {
+  // =====================================================
+  // Participant management
+  // =====================================================
+
+  // Send user joined event with full user info
+  sendUserJoined(sessionId: string, userInfo?: {
+    userId: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  }) {
     if (!this.channel) {
       console.error('❌ Cannot send user-joined: channel not initialized');
       return;
     }
 
-    console.log('📤 Sending user joined event. Session ID:', sessionId);
-    this.channel.trigger('client-user-joined', { sessionId, timestamp: Date.now() });
+    console.log('📤 Sending user joined event. Session ID:', sessionId, 'User ID:', userInfo?.userId);
+    this.channel.trigger('client-user-joined', {
+      sessionId,
+      userId: userInfo?.userId || this.myUserId,
+      displayName: userInfo?.displayName,
+      avatarUrl: userInfo?.avatarUrl,
+      timestamp: Date.now()
+    });
   }
 
   // Send user left event
@@ -159,7 +233,11 @@ export class SignalingService {
     }
 
     console.log('📤 Sending user left event. Session ID:', sessionId);
-    this.channel.trigger('client-user-left', { sessionId, timestamp: Date.now() });
+    this.channel.trigger('client-user-left', {
+      sessionId,
+      userId: this.myUserId,
+      timestamp: Date.now()
+    });
   }
 
   // Send user profile information
@@ -178,36 +256,44 @@ export class SignalingService {
   }
 
   // Listen for user joined
-  onUserJoined(callback: (sessionId: string) => void) {
+  onUserJoined(callback: (data: {
+    sessionId: string;
+    userId: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  }) => void) {
     if (!this.channel) {
       console.error('❌ Cannot bind user-joined: channel not initialized');
       return;
     }
 
-    // Unbind first to prevent duplicate handlers
     this.channel.unbind('client-user-joined');
 
     this.channel.bind('client-user-joined', (data: any) => {
       console.log('📥 User joined event received:', data);
-      callback(data.sessionId);
+      callback({
+        sessionId: data.sessionId,
+        userId: data.userId,
+        displayName: data.displayName,
+        avatarUrl: data.avatarUrl,
+      });
     });
 
     console.log('✅ User joined handler registered');
   }
 
   // Listen for user left
-  onUserLeft(callback: (sessionId: string) => void) {
+  onUserLeft(callback: (data: { sessionId: string; userId: string }) => void) {
     if (!this.channel) {
       console.error('❌ Cannot bind user-left: channel not initialized');
       return;
     }
 
-    // Unbind first to prevent duplicate handlers
     this.channel.unbind('client-user-left');
 
     this.channel.bind('client-user-left', (data: any) => {
       console.log('📥 User left event received:', data);
-      callback(data.sessionId);
+      callback({ sessionId: data.sessionId, userId: data.userId });
     });
 
     console.log('✅ User left handler registered');
@@ -226,7 +312,6 @@ export class SignalingService {
       return;
     }
 
-    // Unbind first to prevent duplicate handlers
     this.channel.unbind('client-user-profile');
 
     this.channel.bind('client-user-profile', (data: any) => {
@@ -236,6 +321,172 @@ export class SignalingService {
 
     console.log('✅ User profile handler registered');
   }
+
+  // =====================================================
+  // State synchronization (mute, video, recording)
+  // =====================================================
+
+  // Send mute state change
+  sendMuteState(isMuted: boolean) {
+    if (!this.channel) return;
+
+    this.channel.trigger('client-mute-state', {
+      userId: this.myUserId,
+      isMuted,
+      timestamp: Date.now(),
+    });
+  }
+
+  onMuteState(callback: (data: { userId: string; isMuted: boolean }) => void) {
+    if (!this.channel) return;
+
+    this.channel.unbind('client-mute-state');
+    this.channel.bind('client-mute-state', (data: any) => {
+      if (data.userId !== this.myUserId) {
+        callback(data);
+      }
+    });
+  }
+
+  // Send video state change
+  sendVideoState(isVideoEnabled: boolean) {
+    if (!this.channel) return;
+
+    this.channel.trigger('client-video-state', {
+      userId: this.myUserId,
+      isVideoEnabled,
+      timestamp: Date.now(),
+    });
+  }
+
+  onVideoState(callback: (data: { userId: string; isVideoEnabled: boolean }) => void) {
+    if (!this.channel) return;
+
+    this.channel.unbind('client-video-state');
+    this.channel.bind('client-video-state', (data: any) => {
+      if (data.userId !== this.myUserId) {
+        callback(data);
+      }
+    });
+  }
+
+  // Send recording state
+  sendRecordingState(payload: { isRecording: boolean; userId: string }) {
+    if (!this.channel) {
+      console.error('❌ Cannot send recording-state: channel not initialized');
+      return;
+    }
+
+    console.log('📤 Broadcasting recording state via signaling:', payload);
+    this.channel.trigger('client-recording-state', payload);
+  }
+
+  onRecordingState(callback: (payload: { isRecording: boolean; userId: string }) => void) {
+    if (!this.channel) {
+      console.error('❌ Cannot bind recording-state: channel not initialized');
+      return;
+    }
+
+    this.channel.unbind('client-recording-state');
+
+    this.channel.bind('client-recording-state', (data: any) => {
+      if (data.userId !== this.myUserId) {
+        console.log('📥 Recording state event received:', data);
+        callback(data);
+      }
+    });
+
+    console.log('✅ Recording state handler registered');
+  }
+
+  // =====================================================
+  // Meeting control
+  // =====================================================
+
+  // Notify participants that host ended the meeting
+  sendMeetingEnded(sessionId: string) {
+    if (!this.channel) {
+      console.error('❌ Cannot send meeting-ended: channel not initialized');
+      return;
+    }
+
+    console.log('📤 Broadcasting meeting ended event from session:', sessionId);
+    this.channel.trigger('client-meeting-ended', {
+      sessionId,
+      userId: this.myUserId,
+      timestamp: Date.now()
+    });
+  }
+
+  // Listen for meeting ended events
+  onMeetingEnded(callback: (data: { sessionId: string; userId: string }) => void) {
+    if (!this.channel) {
+      console.error('❌ Cannot bind meeting-ended: channel not initialized');
+      return;
+    }
+
+    this.channel.unbind('client-meeting-ended');
+
+    this.channel.bind('client-meeting-ended', (data: any) => {
+      console.log('📥 Meeting ended event received:', data);
+      callback({ sessionId: data.sessionId, userId: data.userId });
+    });
+
+    console.log('✅ Meeting ended handler registered');
+  }
+
+  // =====================================================
+  // Data channel fallback handlers
+  // =====================================================
+
+  onOfferReady(callback: (data: { fromUserId: string }) => void) {
+    if (!this.channel) return;
+    this.channel.unbind('client-offer-ready');
+    this.channel.bind('client-offer-ready', (data: any) => {
+      if (data.targetUserId === this.myUserId) {
+        callback({ fromUserId: data.fromUserId });
+      }
+    });
+  }
+
+  onAnswerReady(callback: (data: { fromUserId: string }) => void) {
+    if (!this.channel) return;
+    this.channel.unbind('client-answer-ready');
+    this.channel.bind('client-answer-ready', (data: any) => {
+      if (data.targetUserId === this.myUserId) {
+        callback({ fromUserId: data.fromUserId });
+      }
+    });
+  }
+
+  // =====================================================
+  // Request existing participants (for late joiners)
+  // =====================================================
+
+  requestParticipantList() {
+    if (!this.channel) return;
+
+    console.log('📤 Requesting participant list');
+    this.channel.trigger('client-request-participants', {
+      fromUserId: this.myUserId,
+      timestamp: Date.now(),
+    });
+  }
+
+  onParticipantListRequest(callback: (fromUserId: string) => void) {
+    if (!this.channel) return;
+
+    this.channel.unbind('client-request-participants');
+    this.channel.bind('client-request-participants', (data: any) => {
+      if (data.fromUserId !== this.myUserId) {
+        callback(data.fromUserId);
+      }
+    });
+  }
+
+  // =====================================================
+  // Cleanup
+  // =====================================================
 
   disconnect() {
     console.log('🔌 Disconnecting from signaling channel');

@@ -34,6 +34,15 @@ export interface Note {
   markdownAnalysis?: string; // Markdown formatted analysis for documents
   actionItems?: ActionItem[];
   keyTopics?: string[];
+  // Support multiple attachments for notes (optional)
+  attachments?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    storageUrl: string;
+  }>;
+  // Optional list of audio files related to this note
+  audioFiles?: AudioFile[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,7 +94,7 @@ export interface Analysis {
 export interface ActionItem {
   id: string;
   text: string;
-  priority?: 'high' | 'medium' | 'low'; // Optional, defaults to 'medium'
+  priority?: 'high' | 'medium' | 'low'; // Optional - only shown if explicitly set
   completed: boolean;
   deadline?: string; // ISO date string
   createdAt?: string;

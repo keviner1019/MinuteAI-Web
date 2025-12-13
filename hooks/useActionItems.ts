@@ -39,11 +39,11 @@ export function useActionItems({
 
   // Add new action item
   const addItem = useCallback(
-    async (text: string, priority: 'high' | 'medium' | 'low' = 'medium', deadline?: string) => {
+    async (text: string, priority?: 'high' | 'medium' | 'low', deadline?: string) => {
       const newItem: ActionItem = {
         id: `action-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         text,
-        priority,
+        priority, // Only set if explicitly provided
         completed: false,
         deadline,
         createdAt: new Date().toISOString(),
