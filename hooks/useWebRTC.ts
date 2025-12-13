@@ -65,6 +65,23 @@ export function useWebRTC(roomId: string) {
       const existing = newMap.get(userId);
       if (existing) {
         newMap.set(userId, { ...existing, ...updates });
+      } else {
+        // Create participant if it doesn't exist (handles race condition)
+        console.log(`📝 Creating participant on update: ${userId}`);
+        newMap.set(userId, {
+          userId,
+          sessionId: '',
+          displayName: null,
+          avatarUrl: null,
+          isMuted: false,
+          isVideoEnabled: false,
+          isSpeaking: false,
+          isRecording: false,
+          connectionState: 'new',
+          stream: null,
+          videoStream: null,
+          ...updates,
+        });
       }
       return newMap;
     });
@@ -175,6 +192,21 @@ export function useWebRTC(roomId: string) {
     };
 
     peerConnections.current.set(remoteUserId, peerManager);
+
+    // Flush any buffered ICE candidates for this user
+    const bufferedCandidates = pendingIceCandidates.current.get(remoteUserId);
+    if (bufferedCandidates && bufferedCandidates.length > 0) {
+      console.log(`🧊 Flushing ${bufferedCandidates.length} buffered ICE candidates for ${remoteUserId}`);
+      for (const candidate of bufferedCandidates) {
+        try {
+          await peerManager.addIceCandidate(candidate);
+        } catch (error) {
+          console.error(`Error adding buffered ICE candidate:`, error);
+        }
+      }
+      pendingIceCandidates.current.delete(remoteUserId);
+    }
+
     return peerManager;
   }, [getActiveParticipantCount, updateParticipant]);
 
@@ -287,9 +319,19 @@ export function useWebRTC(roomId: string) {
     }
   }, []);
 
+  // Buffer for ICE candidates that arrive before peer connection is ready
+  const pendingIceCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+
   const handleIceCandidateFromPeer = useCallback(async (candidate: RTCIceCandidateInit, fromUserId: string) => {
     const peerManager = peerConnections.current.get(fromUserId);
-    if (!peerManager) return;
+    if (!peerManager) {
+      // Buffer the candidate for later
+      console.log(`🧊 Buffering ICE candidate for ${fromUserId} (no peer connection yet)`);
+      const pending = pendingIceCandidates.current.get(fromUserId) || [];
+      pending.push(candidate);
+      pendingIceCandidates.current.set(fromUserId, pending);
+      return;
+    }
 
     try {
       await peerManager.addIceCandidate(candidate);
