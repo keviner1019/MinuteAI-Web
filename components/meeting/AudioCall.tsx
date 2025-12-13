@@ -59,34 +59,66 @@ export function AudioCall({
     setIsLocalSpeaking(localAudioLevel > SPEAKING_THRESHOLD);
   }, [localAudioLevel]);
 
+  // Track stream IDs to detect when streams are recreated
+  const streamIds = useRef<Map<string, string>>(new Map());
+
   // Setup audio playback for each remote participant
   useEffect(() => {
     participantList.forEach((participant) => {
-      if (!participant.stream) return;
+      if (!participant.stream) {
+        // Remove audio element if stream is gone
+        const existingAudioEl = audioRefs.current.get(participant.userId);
+        if (existingAudioEl) {
+          console.log(`🔇 Removing audio for ${participant.displayName || participant.userId} (no stream)`);
+          existingAudioEl.srcObject = null;
+        }
+        streamIds.current.delete(participant.userId);
+        return;
+      }
+
+      const currentStreamId = participant.stream.id;
+      const previousStreamId = streamIds.current.get(participant.userId);
 
       let audioEl = audioRefs.current.get(participant.userId);
       if (!audioEl) {
         audioEl = document.createElement('audio');
         audioEl.autoplay = true;
+        // @ts-ignore - setAttribute for playsInline (mobile support)
+        audioEl.setAttribute('playsinline', 'true');
         audioRefs.current.set(participant.userId, audioEl);
+        console.log(`🔊 Created audio element for ${participant.displayName || participant.userId}`);
       }
 
-      if (audioEl.srcObject !== participant.stream) {
+      // Update if stream changed or is new
+      if (currentStreamId !== previousStreamId || audioEl.srcObject !== participant.stream) {
+        console.log(`🔊 Attaching audio stream for ${participant.displayName || participant.userId}:`, {
+          streamId: currentStreamId,
+          tracks: participant.stream.getAudioTracks().length,
+          trackStates: participant.stream.getAudioTracks().map(t => ({ enabled: t.enabled, muted: t.muted, readyState: t.readyState })),
+        });
+
         audioEl.srcObject = participant.stream;
+        streamIds.current.set(participant.userId, currentStreamId);
+
         audioEl.play().catch((err) => {
           console.warn('Audio autoplay blocked:', err);
+          // Try playing on user interaction
+          const playOnInteraction = () => {
+            audioEl?.play().catch(() => {});
+            document.removeEventListener('click', playOnInteraction);
+          };
+          document.addEventListener('click', playOnInteraction, { once: true });
         });
       }
     });
 
     // Cleanup removed participants
-    audioRefs.current.forEach((_, userId) => {
+    audioRefs.current.forEach((audioEl, userId) => {
       if (!participants.has(userId)) {
-        const audioEl = audioRefs.current.get(userId);
-        if (audioEl) {
-          audioEl.srcObject = null;
-          audioRefs.current.delete(userId);
-        }
+        console.log(`🧹 Cleaning up audio for removed participant: ${userId}`);
+        audioEl.srcObject = null;
+        audioRefs.current.delete(userId);
+        streamIds.current.delete(userId);
       }
     });
   }, [participantList, participants]);

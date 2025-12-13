@@ -132,15 +132,57 @@ export function useWebRTC(roomId: string) {
 
     // Setup event handlers
     peerManager.onRemoteStream = (stream) => {
-      console.log(`🎵 Remote stream received from ${remoteUserId}`);
+      console.log(`🎵 Remote stream received from ${remoteUserId}:`, {
+        id: stream.id,
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length,
+      });
 
-      const audioTracks = stream.getAudioTracks().filter((t) => t.readyState === 'live');
-      const videoTracks = stream.getVideoTracks().filter((t) => t.readyState === 'live');
+      // Get all tracks from the stream
+      const audioTracks = stream.getAudioTracks();
+      const videoTracks = stream.getVideoTracks();
+
+      // Create or update audio stream
+      let audioStream: MediaStream | null = null;
+      if (audioTracks.length > 0) {
+        audioStream = new MediaStream(audioTracks);
+        // Listen for track state changes
+        audioTracks.forEach(track => {
+          track.onunmute = () => {
+            console.log(`🔊 Audio track unmuted from ${remoteUserId}`);
+            // Force re-render by updating participant
+            updateParticipant(remoteUserId, { connectionState: 'connected' });
+          };
+          track.onended = () => {
+            console.log(`🔇 Audio track ended from ${remoteUserId}`);
+          };
+        });
+      }
+
+      // Create or update video stream
+      let videoStream: MediaStream | null = null;
+      if (videoTracks.length > 0) {
+        videoStream = new MediaStream(videoTracks);
+        // Listen for track state changes
+        videoTracks.forEach(track => {
+          track.onunmute = () => {
+            console.log(`📹 Video track unmuted from ${remoteUserId}`);
+            updateParticipant(remoteUserId, { isVideoEnabled: true });
+          };
+          track.onended = () => {
+            console.log(`📹 Video track ended from ${remoteUserId}`);
+            updateParticipant(remoteUserId, { videoStream: null, isVideoEnabled: false });
+          };
+        });
+      }
+
+      console.log(`📊 Updating participant ${remoteUserId}: audio=${!!audioStream}, video=${!!videoStream}`);
 
       updateParticipant(remoteUserId, {
-        stream: audioTracks.length > 0 ? new MediaStream(audioTracks) : null,
-        videoStream: videoTracks.length > 0 ? new MediaStream(videoTracks) : null,
+        stream: audioStream,
+        videoStream: videoStream,
         connectionState: 'connected',
+        isVideoEnabled: videoTracks.length > 0,
       });
     };
 
@@ -151,11 +193,16 @@ export function useWebRTC(roomId: string) {
       if (state === 'connected') {
         setIsConnected(true);
         setConnectionState('connected');
-      } else if (state === 'failed' || state === 'disconnected') {
+      } else if (state === 'failed') {
+        // Only clear streams on failed (not disconnected, as it might recover)
+        console.log(`⚠️ Connection failed with ${remoteUserId}, clearing streams`);
         updateParticipant(remoteUserId, {
           stream: null,
           videoStream: null,
         });
+      } else if (state === 'disconnected') {
+        // Don't clear streams yet - connection might recover
+        console.log(`⚠️ Connection disconnected with ${remoteUserId}, waiting for recovery...`);
       }
     };
 
