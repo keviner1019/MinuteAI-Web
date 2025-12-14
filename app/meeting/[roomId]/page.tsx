@@ -72,6 +72,7 @@ export default function MeetingRoom() {
     remoteUserProfile,
     isHost,
     getPeerConnection,
+    participants,
   } = useWebRTC(roomId);
 
 
@@ -147,11 +148,11 @@ export default function MeetingRoom() {
     const tracks: MediaStreamTrack[] = [];
 
     if (mixedStream) {
-      mixedStream.getAudioTracks().forEach((track) => tracks.push(track));
+      mixedStream.getAudioTracks().forEach((track: MediaStreamTrack) => tracks.push(track));
     } else if (localStream) {
-      localStream.getAudioTracks().forEach((track) => tracks.push(track));
+      localStream.getAudioTracks().forEach((track: MediaStreamTrack) => tracks.push(track));
     } else if (remoteStream) {
-      remoteStream.getAudioTracks().forEach((track) => tracks.push(track));
+      (remoteStream as MediaStream).getAudioTracks().forEach((track: MediaStreamTrack) => tracks.push(track));
     }
 
     const preferredVideoStream =
@@ -162,7 +163,7 @@ export default function MeetingRoom() {
         : null;
 
     if (preferredVideoStream) {
-      preferredVideoStream.getVideoTracks().forEach((track) => tracks.push(track));
+      (preferredVideoStream as MediaStream).getVideoTracks().forEach((track: MediaStreamTrack) => tracks.push(track));
     }
 
     if (tracks.length === 0) {
@@ -170,7 +171,7 @@ export default function MeetingRoom() {
     }
 
     const combined = new MediaStream();
-    tracks.forEach((track) => combined.addTrack(track));
+    tracks.forEach((track: MediaStreamTrack) => combined.addTrack(track));
     return combined;
   }, [localStream, mixedStream, remoteStream, localVideoStream, remoteVideoStream]);
 
@@ -474,13 +475,9 @@ export default function MeetingRoom() {
             <div className="flex-1 flex">
               <AudioCall
                 localStream={localStream}
-                remoteStream={remoteStream}
-                remoteStreamVersion={remoteStreamVersion}
+                participants={participants}
                 isConnected={isConnected}
                 connectionState={connectionState}
-                remoteUserProfile={remoteUserProfile}
-                isRemoteMuted={isRemoteMuted}
-                showVideoLayout={false}
               />
             </div>
           )}

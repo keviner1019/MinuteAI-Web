@@ -127,3 +127,54 @@ export interface ProcessingJob {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Participant type for WebRTC meetings (matches useWebRTC hook)
+export interface Participant {
+  userId: string;
+  sessionId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isMuted: boolean;
+  isVideoEnabled: boolean;
+  isSpeaking: boolean;
+  isRecording: boolean;
+  connectionState: RTCPeerConnectionState | 'new';
+  stream: MediaStream | null;
+  videoStream: MediaStream | null;
+}
+
+// Re-export other meeting types
+export type { ParticipantRole, ConnectionState, ParticipantPermissions, MeetingRoom, MeetingStatus } from './meeting';
+
+// Presence types
+export type PresenceStatus = 'online' | 'away' | 'busy' | 'offline';
+
+// Friend types
+export interface Friend {
+  friendId: string;
+  friendshipId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  email: string | null;
+  status: PresenceStatus;
+  lastSeenAt: string | null;
+  createdAt: string;
+}
+
+export interface FriendRequest {
+  friendshipId: string;
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  email: string | null;
+  createdAt: string;
+}
+
+export interface UserSearchResult {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  email: string | null;
+  isFriend: boolean;
+  hasPendingRequest: boolean;
+}

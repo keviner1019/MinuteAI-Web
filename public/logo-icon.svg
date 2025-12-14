@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="4" y="4" width="40" height="40" rx="8" fill="url(#iconGradient)"/>
+
+  <!-- Letter M stylized as audio waveform -->
+  <path d="M12 32 L12 16 L18 26 L24 16 L30 26 L36 16 L36 32"
+        stroke="white"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"/>
+
+  <!-- Small AI dot indicator -->
+  <circle cx="36" cy="12" r="4" fill="#22d3ee"/>
+</svg>
