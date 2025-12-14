@@ -43,6 +43,8 @@ export interface Note {
   }>;
   // Optional list of audio files related to this note
   audioFiles?: AudioFile[];
+  // Sharing status
+  isShared?: boolean; // true if note_collaborators exist
   createdAt: Date;
   updatedAt: Date;
 }

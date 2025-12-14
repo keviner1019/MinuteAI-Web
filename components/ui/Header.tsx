@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFriendRequests } from '@/hooks/useFriends';
 import Button from './Button';
 import { Avatar } from './Avatar';
 import { supabase } from '@/lib/supabase/config';
+import { AudioWaveform, LayoutDashboard, Calendar, ListTodo, Users } from 'lucide-react';
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { incoming: pendingRequests } = useFriendRequests();
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
   // Load user profile picture
@@ -53,7 +56,10 @@ export default function Header() {
   }
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, badge: 0 },
+    { name: 'Calendar', path: '/calendar', icon: Calendar, badge: 0 },
+    { name: 'Todos', path: '/todos', icon: ListTodo, badge: 0 },
+    { name: 'Friends', path: '/friends', icon: Users, badge: pendingRequests.length },
   ];
 
   return (
@@ -62,24 +68,37 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-gray-900">MinuteAI</span>
+            <div className="p-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg">
+              <AudioWaveform className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">Minute AI</span>
           </Link>
 
           {/* Center Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  pathname === item.path
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname?.startsWith(item.path));
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.name}
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-500 rounded-full">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Right Actions */}

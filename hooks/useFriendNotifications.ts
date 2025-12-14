@@ -85,7 +85,7 @@ export function useFriendNotifications() {
               const senderProfile = await fetchUserProfile(newFriendship.requester_id);
               const senderName = senderProfile?.display_name || senderProfile?.email || 'Someone';
 
-              showFriendRequestToast(senderName, senderProfile?.avatar_url);
+              showFriendRequestToast(senderName, senderProfile?.avatar_url, newFriendship.id);
             }
           }
         )
@@ -120,7 +120,7 @@ export function useFriendNotifications() {
               const accepterName =
                 accepterProfile?.display_name || accepterProfile?.email || 'Someone';
 
-              showFriendAcceptedToast(accepterName, accepterProfile?.avatar_url);
+              showFriendAcceptedToast(accepterName, accepterProfile?.avatar_url, updatedFriendship.addressee_id);
             }
           }
         )

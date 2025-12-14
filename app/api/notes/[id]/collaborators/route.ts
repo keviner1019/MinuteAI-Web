@@ -269,6 +269,70 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 }
 
+// PATCH /api/notes/[id]/collaborators - Update collaborator role
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id: noteId } = await params;
+    const body = await request.json();
+    const { userId, role } = body;
+
+    if (!userId || !role) {
+      return NextResponse.json({ error: 'userId and role are required' }, { status: 400 });
+    }
+
+    if (!['editor', 'viewer'].includes(role)) {
+      return NextResponse.json({ error: 'Role must be "editor" or "viewer"' }, { status: 400 });
+    }
+
+    // Only note owner can update collaborator roles
+    const isOwner = await isNoteOwner(noteId, user.id);
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: 'Only the note owner can update collaborator roles' },
+        { status: 403 }
+      );
+    }
+
+    // Update the collaborator role
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('note_collaborators')
+      .update({ role })
+      .eq('note_id', noteId)
+      .eq('user_id', userId)
+      .select('id, user_id, role')
+      .single();
+
+    if (updateError) {
+      console.error('Error updating collaborator role:', updateError);
+      return NextResponse.json({ error: 'Failed to update collaborator role' }, { status: 500 });
+    }
+
+    if (!updated) {
+      return NextResponse.json({ error: 'Collaborator not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      message: 'Collaborator role updated successfully',
+      collaborator: {
+        id: updated.id,
+        userId: updated.user_id,
+        role: updated.role,
+      },
+    });
+  } catch (error) {
+    console.error('Error in PATCH /api/notes/[id]/collaborators:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 // DELETE /api/notes/[id]/collaborators - Remove a collaborator
 export async function DELETE(
   request: NextRequest,

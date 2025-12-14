@@ -63,14 +63,15 @@ export function useCollaborationNotifications() {
 
       switch (payload.type) {
         case 'collaborator-added':
-          showCollaboratorAddedToast(senderName, payload.noteTitle || 'a note', avatarUrl);
+          showCollaboratorAddedToast(senderName, payload.noteTitle || 'a note', avatarUrl, payload.noteId);
           break;
         case 'action-item-completed':
           showActionItemUpdateToast(
             senderName,
             'completed',
             payload.data?.itemText || 'a task',
-            avatarUrl
+            avatarUrl,
+            payload.data?.itemId
           );
           break;
         case 'action-item-updated':
@@ -78,7 +79,8 @@ export function useCollaborationNotifications() {
             senderName,
             'updated',
             payload.data?.itemText || 'a task',
-            avatarUrl
+            avatarUrl,
+            payload.data?.itemId
           );
           break;
         case 'action-item-deleted':
@@ -86,7 +88,8 @@ export function useCollaborationNotifications() {
             senderName,
             'deleted',
             payload.data?.itemText || 'a task',
-            avatarUrl
+            avatarUrl,
+            payload.data?.itemId
           );
           break;
       }
@@ -162,7 +165,8 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
             senderName,
             'completed',
             payload.data?.itemText || 'a task',
-            avatarUrl
+            avatarUrl,
+            payload.data?.itemId
           );
           break;
         case 'action-item-updated':
@@ -170,7 +174,8 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
             senderName,
             'updated',
             payload.data?.itemText || 'a task',
-            avatarUrl
+            avatarUrl,
+            payload.data?.itemId
           );
           break;
         case 'action-item-deleted':
@@ -178,7 +183,8 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
             senderName,
             'deleted',
             payload.data?.itemText || 'a task',
-            avatarUrl
+            avatarUrl,
+            payload.data?.itemId
           );
           break;
       }

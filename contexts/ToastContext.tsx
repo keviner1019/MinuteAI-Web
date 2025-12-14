@@ -1,7 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { X, UserPlus, UserCheck, Bell, FileText, CheckSquare } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { X, UserPlus, UserCheck, Bell, FileText, CheckSquare, Video, Calendar, ArrowRight } from 'lucide-react';
+import { highlightElementAfterDelay, HighlightType } from '@/lib/utils/highlight';
 
 export type ToastType =
   | 'info'
@@ -11,7 +13,23 @@ export type ToastType =
   | 'friend_request'
   | 'friend_accepted'
   | 'collaborator_added'
-  | 'action_item_update';
+  | 'action_item_update'
+  | 'meeting_invite'
+  | 'meeting_started'
+  | 'meeting_ended'
+  | 'participant_joined'
+  | 'participant_left'
+  | 'todo_assigned'
+  | 'todo_completed'
+  | 'note_shared'
+  | 'note_updated'
+  | 'meeting_reminder'
+  | 'deadline_reminder';
+
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 
 interface Toast {
   id: string;
@@ -20,25 +38,44 @@ interface Toast {
   message?: string;
   duration?: number;
   avatar?: string | null;
+  action?: ToastAction;
+  navigateTo?: string;
+  highlightId?: string;
+  highlightType?: HighlightType;
 }
 
 interface ToastContextType {
   toasts: Toast[];
   showToast: (toast: Omit<Toast, 'id'>) => void;
   dismissToast: (id: string) => void;
-  showFriendRequestToast: (senderName: string, avatar?: string | null) => void;
-  showFriendAcceptedToast: (friendName: string, avatar?: string | null) => void;
+  showFriendRequestToast: (senderName: string, avatar?: string | null, friendshipId?: string) => void;
+  showFriendAcceptedToast: (friendName: string, avatar?: string | null, friendId?: string) => void;
   showCollaboratorAddedToast: (
     ownerName: string,
     noteTitle: string,
-    avatar?: string | null
+    avatar?: string | null,
+    noteId?: string
   ) => void;
   showActionItemUpdateToast: (
     userName: string,
     action: 'completed' | 'updated' | 'deleted',
     itemText: string,
+    avatar?: string | null,
+    todoId?: string
+  ) => void;
+  showMeetingInviteToast: (
+    inviterName: string,
+    meetingTitle: string,
+    roomId: string,
     avatar?: string | null
   ) => void;
+  showMeetingStartedToast: (meetingTitle: string, roomId: string) => void;
+  showMeetingEndedToast: (meetingTitle: string) => void;
+  showParticipantJoinedToast: (participantName: string, avatar?: string | null) => void;
+  showParticipantLeftToast: (participantName: string) => void;
+  showNoteSharedToast: (ownerName: string, noteTitle: string, noteId: string, avatar?: string | null) => void;
+  showMeetingReminderToast: (meetingTitle: string, minutesUntil: number, roomId?: string) => void;
+  showDeadlineReminderToast: (todoText: string, dueDate: string, todoId?: string) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -57,7 +94,7 @@ function generateId() {
 }
 
 // Toast item component
-function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+function ToastItem({ toast, onDismiss, onAction }: { toast: Toast; onDismiss: () => void; onAction?: () => void }) {
   const [isExiting, setIsExiting] = React.useState(false);
 
   React.useEffect(() => {
@@ -75,6 +112,15 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     setTimeout(onDismiss, 300);
   };
 
+  const handleAction = () => {
+    if (toast.action?.onClick) {
+      toast.action.onClick();
+    } else if (onAction) {
+      onAction();
+    }
+    handleDismiss();
+  };
+
   const getIcon = () => {
     switch (toast.type) {
       case 'friend_request':
@@ -82,9 +128,22 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       case 'friend_accepted':
         return <UserCheck className="w-5 h-5 text-emerald-500" />;
       case 'collaborator_added':
+      case 'note_shared':
+      case 'note_updated':
         return <FileText className="w-5 h-5 text-blue-500" />;
       case 'action_item_update':
+      case 'todo_assigned':
+      case 'todo_completed':
         return <CheckSquare className="w-5 h-5 text-purple-500" />;
+      case 'meeting_invite':
+      case 'meeting_started':
+      case 'meeting_ended':
+      case 'participant_joined':
+      case 'participant_left':
+        return <Video className="w-5 h-5 text-purple-500" />;
+      case 'meeting_reminder':
+      case 'deadline_reminder':
+        return <Calendar className="w-5 h-5 text-orange-500" />;
       case 'success':
         return <UserCheck className="w-5 h-5 text-emerald-500" />;
       case 'warning':
@@ -103,9 +162,22 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       case 'friend_accepted':
         return 'border-l-emerald-500';
       case 'collaborator_added':
+      case 'note_shared':
+      case 'note_updated':
         return 'border-l-blue-500';
       case 'action_item_update':
+      case 'todo_assigned':
+      case 'todo_completed':
         return 'border-l-purple-500';
+      case 'meeting_invite':
+      case 'meeting_started':
+      case 'meeting_ended':
+      case 'participant_joined':
+      case 'participant_left':
+        return 'border-l-purple-500';
+      case 'meeting_reminder':
+      case 'deadline_reminder':
+        return 'border-l-orange-500';
       case 'success':
         return 'border-l-emerald-500';
       case 'warning':
@@ -116,6 +188,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         return 'border-l-blue-500';
     }
   };
+
+  const hasAction = toast.action || toast.navigateTo;
 
   const getInitials = (name: string) => {
     return name
@@ -156,6 +230,16 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       <div className="flex-1 min-w-0">
         <p className="font-medium text-slate-900 text-sm truncate">{toast.title}</p>
         {toast.message && <p className="text-slate-500 text-xs mt-0.5">{toast.message}</p>}
+        {/* Action button */}
+        {hasAction && (
+          <button
+            onClick={handleAction}
+            className="inline-flex items-center gap-1 text-sm text-purple-600 font-medium mt-2 hover:text-purple-700 hover:underline transition-colors"
+          >
+            {toast.action?.label || 'View'}
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Close button */}
@@ -173,15 +257,21 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 function ToastContainer({
   toasts,
   onDismiss,
+  onNavigate,
 }: {
   toasts: Toast[];
   onDismiss: (id: string) => void;
+  onNavigate: (toast: Toast) => void;
 }) {
   return (
     <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
       {toasts.map((toast) => (
         <div key={toast.id} className="pointer-events-auto">
-          <ToastItem toast={toast} onDismiss={() => onDismiss(toast.id)} />
+          <ToastItem
+            toast={toast}
+            onDismiss={() => onDismiss(toast.id)}
+            onAction={toast.navigateTo ? () => onNavigate(toast) : undefined}
+          />
         </div>
       ))}
     </div>
@@ -191,6 +281,7 @@ function ToastContainer({
 // Toast provider
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const router = useRouter();
 
   const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = generateId();
@@ -201,40 +292,63 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Handle navigation when toast action is clicked
+  const handleNavigate = useCallback(
+    (toast: Toast) => {
+      if (toast.navigateTo) {
+        router.push(toast.navigateTo);
+        // Highlight element after navigation
+        if (toast.highlightId) {
+          highlightElementAfterDelay(toast.highlightId, 500, toast.highlightType);
+        }
+      }
+    },
+    [router]
+  );
+
   const showFriendRequestToast = useCallback(
-    (senderName: string, avatar?: string | null) => {
+    (senderName: string, avatar?: string | null, friendshipId?: string) => {
       showToast({
         type: 'friend_request',
         title: senderName,
         message: 'sent you a friend request',
         avatar,
         duration: 6000,
+        navigateTo: '/friends?tab=requests',
+        highlightId: friendshipId ? `request-${friendshipId}` : undefined,
+        highlightType: 'friend',
       });
     },
     [showToast]
   );
 
   const showFriendAcceptedToast = useCallback(
-    (friendName: string, avatar?: string | null) => {
+    (friendName: string, avatar?: string | null, friendId?: string) => {
       showToast({
         type: 'friend_accepted',
         title: friendName,
         message: 'accepted your friend request',
         avatar,
         duration: 6000,
+        navigateTo: '/friends',
+        highlightId: friendId ? `friend-${friendId}` : undefined,
+        highlightType: 'friend',
       });
     },
     [showToast]
   );
 
   const showCollaboratorAddedToast = useCallback(
-    (ownerName: string, noteTitle: string, avatar?: string | null) => {
+    (ownerName: string, noteTitle: string, avatar?: string | null, noteId?: string) => {
       showToast({
         type: 'collaborator_added',
         title: ownerName,
         message: `shared "${noteTitle}" with you`,
         avatar,
         duration: 6000,
+        navigateTo: noteId ? `/notes/${noteId}` : '/dashboard',
+        highlightId: noteId ? `note-${noteId}` : undefined,
+        highlightType: 'note',
       });
     },
     [showToast]
@@ -245,7 +359,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       userName: string,
       action: 'completed' | 'updated' | 'deleted',
       itemText: string,
-      avatar?: string | null
+      avatar?: string | null,
+      todoId?: string
     ) => {
       const actionText =
         action === 'completed' ? 'completed' : action === 'deleted' ? 'deleted' : 'updated';
@@ -256,6 +371,133 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         message: `${actionText} task: "${truncatedText}"`,
         avatar,
         duration: 5000,
+        navigateTo: '/todos',
+        highlightId: todoId ? `todo-${todoId}` : undefined,
+        highlightType: 'todo',
+      });
+    },
+    [showToast]
+  );
+
+  const showMeetingInviteToast = useCallback(
+    (inviterName: string, meetingTitle: string, roomId: string, avatar?: string | null) => {
+      showToast({
+        type: 'meeting_invite',
+        title: 'Meeting Invitation',
+        message: `${inviterName} invited you to "${meetingTitle}"`,
+        avatar,
+        duration: 8000,
+        navigateTo: `/meeting/${roomId}`,
+        action: {
+          label: 'Join',
+          onClick: () => router.push(`/meeting/${roomId}`),
+        },
+      });
+    },
+    [showToast, router]
+  );
+
+  const showMeetingStartedToast = useCallback(
+    (meetingTitle: string, roomId: string) => {
+      showToast({
+        type: 'meeting_started',
+        title: 'Meeting Started',
+        message: `"${meetingTitle}" is starting now`,
+        duration: 6000,
+        navigateTo: `/meeting/${roomId}`,
+        action: {
+          label: 'Join',
+          onClick: () => router.push(`/meeting/${roomId}`),
+        },
+      });
+    },
+    [showToast, router]
+  );
+
+  const showMeetingEndedToast = useCallback(
+    (meetingTitle: string) => {
+      showToast({
+        type: 'meeting_ended',
+        title: 'Meeting Ended',
+        message: `"${meetingTitle}" has ended`,
+        duration: 5000,
+        navigateTo: '/dashboard',
+      });
+    },
+    [showToast]
+  );
+
+  const showParticipantJoinedToast = useCallback(
+    (participantName: string, avatar?: string | null) => {
+      showToast({
+        type: 'participant_joined',
+        title: participantName,
+        message: 'joined the meeting',
+        avatar,
+        duration: 4000,
+      });
+    },
+    [showToast]
+  );
+
+  const showParticipantLeftToast = useCallback(
+    (participantName: string) => {
+      showToast({
+        type: 'participant_left',
+        title: participantName,
+        message: 'left the meeting',
+        duration: 4000,
+      });
+    },
+    [showToast]
+  );
+
+  const showNoteSharedToast = useCallback(
+    (ownerName: string, noteTitle: string, noteId: string, avatar?: string | null) => {
+      showToast({
+        type: 'note_shared',
+        title: ownerName,
+        message: `shared "${noteTitle}" with you`,
+        avatar,
+        duration: 6000,
+        navigateTo: `/notes/${noteId}`,
+        highlightId: `note-${noteId}`,
+        highlightType: 'note',
+      });
+    },
+    [showToast]
+  );
+
+  const showMeetingReminderToast = useCallback(
+    (meetingTitle: string, minutesUntil: number, roomId?: string) => {
+      showToast({
+        type: 'meeting_reminder',
+        title: 'Upcoming Meeting',
+        message: `"${meetingTitle}" starts in ${minutesUntil} minutes`,
+        duration: 8000,
+        navigateTo: roomId ? `/meeting/${roomId}` : '/calendar',
+        action: roomId
+          ? {
+              label: 'Join',
+              onClick: () => router.push(`/meeting/${roomId}`),
+            }
+          : undefined,
+      });
+    },
+    [showToast, router]
+  );
+
+  const showDeadlineReminderToast = useCallback(
+    (todoText: string, dueDate: string, todoId?: string) => {
+      const truncatedText = todoText.length > 30 ? todoText.substring(0, 30) + '...' : todoText;
+      showToast({
+        type: 'deadline_reminder',
+        title: 'Deadline Approaching',
+        message: `"${truncatedText}" due ${dueDate}`,
+        duration: 6000,
+        navigateTo: '/todos',
+        highlightId: todoId ? `todo-${todoId}` : undefined,
+        highlightType: 'todo',
       });
     },
     [showToast]
@@ -271,10 +513,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         showFriendAcceptedToast,
         showCollaboratorAddedToast,
         showActionItemUpdateToast,
+        showMeetingInviteToast,
+        showMeetingStartedToast,
+        showMeetingEndedToast,
+        showParticipantJoinedToast,
+        showParticipantLeftToast,
+        showNoteSharedToast,
+        showMeetingReminderToast,
+        showDeadlineReminderToast,
       }}
     >
       {children}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} onNavigate={handleNavigate} />
     </ToastContext.Provider>
   );
 }

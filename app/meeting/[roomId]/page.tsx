@@ -6,7 +6,9 @@ import { AudioCall } from '@/components/meeting/AudioCall';
 import { TranscriptPanel } from '@/components/meeting/TranscriptPanel';
 import { Controls } from '@/components/meeting/Controls';
 import { RecordingCountdown } from '@/components/meeting/RecordingCountdown';
-import { VideoDisplay } from '@/components/meeting/VideoDisplay';
+import { VideoGrid } from '@/components/meeting/VideoGrid';
+import { ParticipantCount } from '@/components/meeting/ParticipantCount';
+import Header from '@/components/ui/Header';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useTranscription } from '@/hooks/useTranscription';
 import { useCompositeRecorder } from '@/hooks/useCompositeRecorder';
@@ -342,8 +344,19 @@ export default function MeetingRoom() {
     }
   }, [isRemoteRecording, remoteUserProfile, isConnected, showRecordingToast]);
 
+  // Calculate participant count
+  const participantCount = useMemo(() => {
+    return participants.size + 1; // +1 for local user
+  }, [participants]);
+
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      {/* Header */}
+      <Header />
+
+      {/* Participant Counter */}
+      <ParticipantCount count={participantCount} />
+
       {/* Participant Joined Notification */}
       {participantJoinedName && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top">
@@ -442,36 +455,25 @@ export default function MeetingRoom() {
       {/* Audio and Video Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left: Audio visualization and Video */}
-        <div className="flex-1 flex flex-col p-4 gap-4">
+        <div className="flex-1 flex flex-col p-2 gap-2">
           {/* Video Section - Show when either local or remote video is enabled */}
-          {hasActiveVideo && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-              {/* Local Video */}
-              <div className="relative">
-                <VideoDisplay
-                  stream={localVideoStream}
-                  isMuted={isMuted}
-                  isLocal={true}
-                  userName="You"
-                  userAvatar={null}
-                />
-              </div>
-
-              {/* Remote Video */}
-              <div className="relative">
-                <VideoDisplay
-                  stream={remoteVideoStream}
-                  isMuted={isRemoteMuted}
-                  isLocal={false}
-                  userName={remoteUserProfile?.display_name || 'Guest'}
-                  userAvatar={remoteUserProfile?.avatar_url}
-                />
-              </div>
+          {hasActiveVideo ? (
+            <div className="flex-1">
+              <VideoGrid
+                localParticipant={{
+                  stream: localStream,
+                  videoStream: localVideoStream,
+                  isMuted: isMuted,
+                  displayName: 'You',
+                  avatarUrl: null,
+                  isSpeaking: false,
+                }}
+                remoteParticipants={Array.from(participants.values())}
+                speakingUserId={null}
+              />
             </div>
-          )}
-
-          {/* Audio Visualization - Only show when no video */}
-          {!hasActiveVideo && (
+          ) : (
+            /* Audio Visualization - Only show when no video */
             <div className="flex-1 flex">
               <AudioCall
                 localStream={localStream}
@@ -485,7 +487,11 @@ export default function MeetingRoom() {
 
         {/* Transcript Sidebar - Only show when toggled on */}
         {showTranscriptPanel && (
-          <TranscriptPanel transcripts={transcripts} isTranscribing={isTranscribing} />
+          <TranscriptPanel
+            transcripts={transcripts}
+            isTranscribing={isTranscribing}
+            onToggleLive={handleToggleTranscription}
+          />
         )}
       </div>
 

@@ -10,6 +10,8 @@ import {
   StopCircle,
   Video,
   VideoOff,
+  ScreenShare,
+  ScreenShareOff,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -22,6 +24,7 @@ interface ControlsProps {
   isRecording: boolean;
   isSavingRecording?: boolean;
   isVideoEnabled?: boolean;
+  isScreenSharing?: boolean;
   isRemoteRecording?: boolean;
   canRecord?: boolean;
   isHost?: boolean;
@@ -29,6 +32,7 @@ interface ControlsProps {
   onToggleTranscription: () => void;
   onToggleRecording: () => void;
   onToggleVideo?: () => void;
+  onToggleScreenShare?: () => void;
   onEndCall: () => void;
   roomId?: string;
 }
@@ -40,6 +44,7 @@ export function Controls({
   isRecording,
   isSavingRecording = false,
   isVideoEnabled,
+  isScreenSharing = false,
   isRemoteRecording,
   canRecord = true,
   isHost = false,
@@ -47,6 +52,7 @@ export function Controls({
   onToggleTranscription,
   onToggleRecording,
   onToggleVideo,
+  onToggleScreenShare,
   onEndCall,
   roomId,
 }: ControlsProps) {
@@ -157,6 +163,23 @@ export function Controls({
           </button>
         )}
 
+        {/* Screen Share Toggle (Broadcast) */}
+        {onToggleScreenShare && (
+          <button
+            onClick={onToggleScreenShare}
+            className={`p-4 rounded-full transition shadow-md ${
+              isScreenSharing ? 'bg-purple-500 hover:bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+            title={isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+          >
+            {isScreenSharing ? (
+              <ScreenShareOff size={24} className="text-white" />
+            ) : (
+              <ScreenShare size={24} className="text-white" />
+            )}
+          </button>
+        )}
+
         {/* Recording Toggle */}
         <button
           onClick={onToggleRecording}
@@ -216,12 +239,18 @@ export function Controls({
 
       {/* Right: Status */}
       <div className="flex items-center gap-3">
-          {isSavingRecording && (
-            <div className="flex items-center gap-2 text-amber-700 text-sm font-medium bg-amber-50 px-3 py-2 rounded-full border border-amber-200">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
-              Saving recording...
-            </div>
-          )}
+        {isSavingRecording && (
+          <div className="flex items-center gap-2 text-amber-700 text-sm font-medium bg-amber-50 px-3 py-2 rounded-full border border-amber-200">
+            <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
+            Saving recording...
+          </div>
+        )}
+        {isScreenSharing && (
+          <div className="flex items-center gap-2 text-purple-700 text-sm font-medium bg-purple-50 px-3 py-2 rounded-full border border-purple-200">
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-pulse"></div>
+            Screen Sharing
+          </div>
+        )}
         {(isRecording || isRemoteRecording) && (
           <div className="flex items-center gap-2 text-red-700 text-sm font-medium bg-red-50 px-3 py-2 rounded-full border border-red-200">
             <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>

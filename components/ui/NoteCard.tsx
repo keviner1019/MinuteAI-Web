@@ -1,5 +1,5 @@
 import { Note } from '@/types';
-import { Clock, FileAudio, CheckCircle, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { Clock, FileAudio, CheckCircle, Sparkles, TrendingUp, Zap, Users } from 'lucide-react';
 import { formatFileSize, formatDuration, formatTimestamp } from '@/utils/helpers';
 
 interface NoteCardProps {
@@ -39,9 +39,17 @@ export default function NoteCard({ note, onClick }: NoteCardProps) {
             <FileAudio className="h-6 w-6 text-purple-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-purple-600 transition-colors">
-              {note.title}
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                {note.title}
+              </h3>
+              {note.isShared && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                  <Users className="h-3 w-3" />
+                  Shared
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
               <Clock className="h-3 w-3" />
               <span>{formatTimestamp(note.createdAt)}</span>

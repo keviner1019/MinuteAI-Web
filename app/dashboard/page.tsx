@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import NoteCard from '@/components/ui/NoteCard';
 import UploadModal from '@/components/ui/UploadModal';
 import MeetingLinkModal from '@/components/ui/MeetingLinkModal';
+import CreateMeetingModal from '@/components/meeting/CreateMeetingModal';
 import { UploadProvider } from '@/contexts/UploadContext';
 import UploadTasksPanel from '@/components/ui/UploadTasksPanel';
 import Button from '@/components/ui/Button';
@@ -35,15 +36,15 @@ export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const { notes, loading, error, refreshNotes } = useNotes(user?.id || null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [createMeetingModalOpen, setCreateMeetingModalOpen] = useState(false);
   const [meetingLinkModal, setMeetingLinkModal] = useState<{ url: string; code: string; roomId: string } | null>(null);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
-  const [creatingMeeting, setCreatingMeeting] = useState(false);
   const [activeTab, setActiveTab] = useState<'notes' | 'meetings'>('notes');
 
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'completed' | 'pending'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'audio' | 'documents'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
 
   const router = useRouter();
@@ -75,55 +76,19 @@ export default function DashboardPage() {
     }
   }
 
-  async function createNewMeeting() {
-    if (!user?.id) {
-      console.error('User not authenticated');
-      alert('Please log in to create a meeting');
-      return;
-    }
-
-    try {
-      setCreatingMeeting(true);
-      const roomId = generateRoomId();
-      const meetingCode = generateMeetingCode();
-
-      const { data: meeting, error } = await supabase
-        .from('meetings')
-        .insert({
-          room_id: roomId,
-          meeting_code: meetingCode,
-          host_id: user.id,
-          title: 'Quick Meeting',
-          status: 'scheduled',
-        } as any)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Show meeting link modal
-      const meetingUrl = `${window.location.origin}/meeting/${roomId}`;
-      setMeetingLinkModal({ url: meetingUrl, code: meetingCode, roomId });
-    } catch (error) {
-      console.error('Failed to create meeting:', error);
-      alert('Failed to create meeting. Please try again.');
-    } finally {
-      setCreatingMeeting(false);
-    }
-  }
-
-  function generateRoomId(): string {
-    return Math.random().toString(36).substring(2, 12);
-  }
-
-  function generateMeetingCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
+  const handleMeetingCreated = (meeting: {
+    id: string;
+    roomId: string;
+    meetingCode: string;
+    meetingUrl: string;
+  }) => {
+    setMeetingLinkModal({
+      url: meeting.meetingUrl,
+      code: meeting.meetingCode,
+      roomId: meeting.roomId,
+    });
+    loadMeetings();
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -153,10 +118,15 @@ export default function DashboardPage() {
         note.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         note.keyTopics?.some((topic) => topic.toLowerCase().includes(searchQuery.toLowerCase()));
 
+      // Filter by file type - check fileType for audio vs document
+      const isAudioFile = note.fileType?.startsWith('audio/') ||
+        ['mp3', 'wav', 'ogg', 'm4a', 'webm'].some(ext => note.fileName?.toLowerCase().endsWith(ext));
+      const isDocumentFile = !isAudioFile;
+
       const matchesFilter =
         filterType === 'all' ||
-        (filterType === 'completed' && note.transcript) ||
-        (filterType === 'pending' && !note.transcript);
+        (filterType === 'audio' && isAudioFile) ||
+        (filterType === 'documents' && isDocumentFile);
 
       return matchesSearch && matchesFilter;
     })
@@ -207,43 +177,29 @@ export default function DashboardPage() {
 
             {/* Quick Action Buttons */}
             <div className="flex items-center gap-3 flex-wrap">
+              {/* Upload File - Primary (purple, filled) */}
               <button
-                onClick={() => router.push('/todos')}
+                onClick={() => setUploadModalOpen(true)}
                 className="group px-5 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
               >
-                <ListTodo className="h-5 w-5 group-hover:rotate-12 transition-transform" />
-                All Todos
+                <Upload className="h-5 w-5 group-hover:-translate-y-1 transition-transform" />
+                Upload File
               </button>
+              {/* New Meeting - Secondary (outline) */}
+              <button
+                onClick={() => setCreateMeetingModalOpen(true)}
+                className="group px-5 py-3 bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-purple-300 text-gray-700 rounded-xl font-semibold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                <Video className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                New Meeting
+              </button>
+              {/* Join Meeting - Secondary (outline) */}
               <button
                 onClick={() => router.push('/join')}
                 className="group px-5 py-3 bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-purple-300 text-gray-700 rounded-xl font-semibold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
               >
                 <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
                 Join Meeting
-              </button>
-              <button
-                onClick={() => setUploadModalOpen(true)}
-                className="group px-5 py-3 bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-blue-300 text-gray-700 rounded-xl font-semibold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
-              >
-                <Upload className="h-5 w-5 group-hover:-translate-y-1 transition-transform" />
-                Upload
-              </button>
-              <button
-                onClick={createNewMeeting}
-                disabled={creatingMeeting}
-                className="group px-5 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {creatingMeeting ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Video className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                    New Meeting
-                  </>
-                )}
               </button>
             </div>
           </div>
@@ -359,8 +315,8 @@ export default function DashboardPage() {
                           className="px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 hover:border-purple-300 cursor-pointer"
                         >
                           <option value="all">All Notes</option>
-                          <option value="completed">✅ Completed</option>
-                          <option value="pending">⏳ Processing</option>
+                          <option value="audio">Audio</option>
+                          <option value="documents">Documents</option>
                         </select>
 
                         <select
@@ -479,7 +435,7 @@ export default function DashboardPage() {
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
                     Start your first video meeting with AI-powered transcription
                   </p>
-                  <Button variant="primary" onClick={createNewMeeting}>
+                  <Button variant="primary" onClick={() => setCreateMeetingModalOpen(true)}>
                     <Video className="h-4 w-4" />
                     Start New Meeting
                   </Button>
@@ -510,6 +466,13 @@ export default function DashboardPage() {
           isOpen={uploadModalOpen}
           onClose={() => setUploadModalOpen(false)}
           onUpload={handleUpload}
+        />
+
+        {/* Create Meeting Modal */}
+        <CreateMeetingModal
+          isOpen={createMeetingModalOpen}
+          onClose={() => setCreateMeetingModalOpen(false)}
+          onMeetingCreated={handleMeetingCreated}
         />
 
         {/* Meeting Link Modal */}

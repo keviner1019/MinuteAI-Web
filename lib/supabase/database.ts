@@ -36,12 +36,16 @@ function rowToNote(row: NoteRow): Note {
 }
 
 /**
- * Get all notes for a user
+ * Get all notes for a user with isShared status
  */
 export async function getNotes(userId: string): Promise<Note[]> {
+  // Fetch notes with a left join to note_collaborators to check if shared
   const { data, error } = await supabase
     .from('notes')
-    .select('*')
+    .select(`
+      *,
+      note_collaborators(id)
+    `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -50,7 +54,10 @@ export async function getNotes(userId: string): Promise<Note[]> {
     throw new Error(`Failed to fetch notes: ${error.message}`);
   }
 
-  return (data || []).map(rowToNote);
+  return (data || []).map(row => ({
+    ...rowToNote(row),
+    isShared: Array.isArray(row.note_collaborators) && row.note_collaborators.length > 0,
+  }));
 }
 
 /**

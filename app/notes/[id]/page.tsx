@@ -14,11 +14,14 @@ import {
   CheckCircle2,
   Music,
   FileText,
+  Share2,
+  Users,
 } from 'lucide-react';
 import { getNote, deleteNote, updateActionItems } from '@/lib/supabase/database';
 import { Note, ActionItem, TranscriptSegment } from '@/types';
 import TranscriptViewer from '@/components/meeting/TranscriptViewer';
 import ActionItemsList from '@/components/meeting/ActionItemsList';
+import ShareNoteModal from '@/components/notes/ShareNoteModal';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -29,6 +32,7 @@ export default function NotePage() {
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const noteId = params.id as string;
 
@@ -130,9 +134,17 @@ export default function NotePage() {
             {/* Title and Actions */}
             <div className="flex items-start justify-between gap-4 mb-6">
               <div className="flex-1">
-                <h1 className="text-4xl font-bold text-gray-900 mb-3 leading-tight">
-                  {note.title}
-                </h1>
+                <div className="flex items-center gap-3 mb-3">
+                  <h1 className="text-4xl font-bold text-gray-900 leading-tight">
+                    {note.title}
+                  </h1>
+                  {note.isShared && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                      <Users className="h-3.5 w-3.5" />
+                      Shared
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500">
                   Created{' '}
                   {new Date(note.createdAt).toLocaleDateString('en-US', {
@@ -143,14 +155,24 @@ export default function NotePage() {
                   })}
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                onClick={handleDelete}
-                className="flex-shrink-0 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Note
-              </Button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsShareModalOpen(true)}
+                  className="hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 transition-all"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleDelete}
+                  className="hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
             </div>
 
             {/* File Information Card */}
@@ -304,6 +326,17 @@ export default function NotePage() {
             </div>
           )}
         </main>
+
+        {/* Share Note Modal */}
+        {user && (
+          <ShareNoteModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            noteId={noteId}
+            noteTitle={note.title}
+            currentUserId={user.id}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

@@ -157,3 +157,65 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Highlight blink animation for notifications */
+@keyframes highlight-blink {
+  0%, 100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  25%, 75% {
+    background-color: rgba(124, 58, 237, 0.15);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.3);
+  }
+  50% {
+    background-color: rgba(124, 58, 237, 0.25);
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.4);
+  }
+}
+
+.highlight-item {
+  animation: highlight-blink 0.8s ease-in-out 3;
+  border-radius: 8px;
+  position: relative;
+}
+
+/* Calendar date highlight */
+@keyframes calendar-highlight {
+  0%, 100% {
+    transform: scale(1);
+    background-color: rgba(124, 58, 237, 0.1);
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(124, 58, 237, 0.3);
+  }
+}
+
+.calendar-highlight {
+  animation: calendar-highlight 0.6s ease-in-out 4;
+}
+
+/* Friend card highlight */
+.friend-card-highlight {
+  animation: highlight-blink 0.8s ease-in-out 3;
+  border-color: rgb(124, 58, 237) !important;
+}
+
+/* Todo item highlight */
+.todo-highlight {
+  animation: highlight-blink 0.8s ease-in-out 3;
+  border-left: 4px solid rgb(124, 58, 237);
+}
+
+/* Note card highlight */
+.note-highlight {
+  animation: highlight-blink 0.8s ease-in-out 3;
+  border-color: rgb(124, 58, 237) !important;
+}
+
+/* Meeting card highlight */
+.meeting-highlight {
+  animation: highlight-blink 0.8s ease-in-out 3;
+  border-color: rgb(124, 58, 237) !important;
+}
