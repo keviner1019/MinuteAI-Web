@@ -67,3 +67,7 @@ supabase/migrations/FINAL_*.sql
 supabase/migrations/HOTFIX_*.sql
 supabase/migrations/ULTIMATE_*.sql
 
+# Local-only migrations (not for public repo)
+supabase/migrations/20251215_collaborator_access.sql
+supabase/migrations/20251215_email_notifications.sql
+

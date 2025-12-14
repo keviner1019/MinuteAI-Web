@@ -196,15 +196,9 @@ export async function POST(request: NextRequest) {
 // GET /api/meetings - Get user's meetings
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Get authenticated user from Authorization header
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -212,7 +206,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    let query = (supabase as any)
+    let query = supabaseAdmin
       .from('meetings')
       .select('*')
       .eq('host_id', user.id)

@@ -200,15 +200,8 @@ function ToastItem({ toast, onDismiss, onAction }: { toast: Toast; onDismiss: ()
       .slice(0, 2);
   };
 
-  return (
-    <div
-      className={`
-        flex items-start gap-3 p-4 bg-white rounded-xl shadow-lg border border-slate-200
-        border-l-4 ${getBorderColor()} min-w-[300px] max-w-[400px]
-        transform transition-all duration-300 ease-out
-        ${isExiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'}
-      `}
-    >
+  const toastContent = (
+    <>
       {/* Avatar or Icon */}
       {toast.avatar !== undefined ? (
         toast.avatar ? (
@@ -230,21 +223,39 @@ function ToastItem({ toast, onDismiss, onAction }: { toast: Toast; onDismiss: ()
       <div className="flex-1 min-w-0">
         <p className="font-medium text-slate-900 text-sm truncate">{toast.title}</p>
         {toast.message && <p className="text-slate-500 text-xs mt-0.5">{toast.message}</p>}
-        {/* Action button */}
+        {/* Action indicator */}
         {hasAction && (
-          <button
-            onClick={handleAction}
-            className="inline-flex items-center gap-1 text-sm text-purple-600 font-medium mt-2 hover:text-purple-700 hover:underline transition-colors"
-          >
+          <span className="inline-flex items-center gap-1 text-sm text-purple-600 font-medium mt-2">
             {toast.action?.label || 'View'}
             <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          </span>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <div
+      className={`
+        relative flex items-start gap-3 p-4 bg-white rounded-xl shadow-lg border border-slate-200
+        border-l-4 ${getBorderColor()} min-w-[300px] max-w-[400px]
+        transform transition-all duration-300 ease-out
+        ${isExiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'}
+        ${hasAction ? 'cursor-pointer hover:bg-slate-50' : ''}
+      `}
+      onClick={hasAction ? handleAction : undefined}
+      role={hasAction ? 'button' : undefined}
+      tabIndex={hasAction ? 0 : undefined}
+      onKeyDown={hasAction ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleAction(); } : undefined}
+    >
+      {toastContent}
 
       {/* Close button */}
       <button
-        onClick={handleDismiss}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDismiss();
+        }}
         className="p-1 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0"
       >
         <X className="w-4 h-4 text-slate-400" />
@@ -264,7 +275,7 @@ function ToastContainer({
   onNavigate: (toast: Toast) => void;
 }) {
   return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
+    <div className="fixed top-20 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
       {toasts.map((toast) => (
         <div key={toast.id} className="pointer-events-auto">
           <ToastItem

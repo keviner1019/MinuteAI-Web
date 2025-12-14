@@ -19,6 +19,23 @@ import Button from '@/components/ui/Button';
 import { useFriends } from '@/hooks/useFriends';
 import { useFriendsPresence } from '@/hooks/usePresence';
 import { Friend, PresenceStatus } from '@/types';
+import { createClient } from '@/lib/supabase/client';
+
+async function getAuthHeaders() {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error('Not authenticated');
+  }
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session.access_token}`,
+  };
+}
 
 interface CreateMeetingModalProps {
   isOpen: boolean;
@@ -182,11 +199,10 @@ export default function CreateMeetingModal({
         ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
         : null;
 
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/meetings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           title: title.trim() || 'Quick Meeting',
           scheduled_at: scheduledAt,
@@ -314,13 +330,13 @@ export default function CreateMeetingModal({
               </div>
               <button
                 onClick={() => setIsScheduled(!isScheduled)}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                className={`relative w-12 h-6 rounded-full transition-colors duration-300 flex-shrink-0 ${
                   isScheduled ? 'bg-purple-600' : 'bg-gray-300'
                 }`}
               >
                 <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${
-                    isScheduled ? 'translate-x-7' : 'translate-x-1'
+                  className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${
+                    isScheduled ? 'translate-x-6' : 'translate-x-0'
                   }`}
                 />
               </button>

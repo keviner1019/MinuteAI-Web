@@ -369,10 +369,12 @@ export default function DashboardPage() {
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
                     Upload your first audio file to get started with AI-powered transcription
                   </p>
-                  <Button variant="primary" onClick={() => setUploadModalOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                    Upload Your First Note
-                  </Button>
+                  <div className="flex justify-center">
+                    <Button variant="primary" onClick={() => setUploadModalOpen(true)}>
+                      <Plus className="h-4 w-4" />
+                      Upload Your First Note
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -435,10 +437,12 @@ export default function DashboardPage() {
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
                     Start your first video meeting with AI-powered transcription
                   </p>
-                  <Button variant="primary" onClick={() => setCreateMeetingModalOpen(true)}>
-                    <Video className="h-4 w-4" />
-                    Start New Meeting
-                  </Button>
+                  <div className="flex justify-center">
+                    <Button variant="primary" onClick={() => setCreateMeetingModalOpen(true)}>
+                      <Video className="h-4 w-4" />
+                      Start New Meeting
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">

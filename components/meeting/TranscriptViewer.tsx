@@ -223,8 +223,8 @@ export default function TranscriptViewer({
       {/* Interactive Transcript with Word-Level Accuracy */}
       <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-xl border-2 border-gray-200 p-8 max-h-[700px] overflow-y-auto shadow-inner">
         <div className="space-y-5">
-          {wordTimestamps.length > 0
-            ? // Interactive word-level transcript
+          {wordTimestamps.length > 0 && !hasTranslation
+            ? // Interactive word-level transcript (only when not translated)
               (() => {
                 const segmentsByUtterance: Array<{ speaker: string; words: WordTimestamp[] }> = [];
                 let currentSpeaker = '';

@@ -8,6 +8,8 @@ export interface CalendarEvent {
   priority?: 'high' | 'medium' | 'low';
   noteId?: string;
   meetingId?: string;
+  isShared?: boolean;
+  ownerName?: string;
 }
 
 export interface CalendarStats {

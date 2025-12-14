@@ -36,7 +36,7 @@ function rowToNote(row: NoteRow): Note {
 }
 
 /**
- * Get all notes for a user with isShared status
+ * Get all notes owned by a user with isShared status
  */
 export async function getNotes(userId: string): Promise<Note[]> {
   // Fetch notes with a left join to note_collaborators to check if shared
@@ -58,6 +58,78 @@ export async function getNotes(userId: string): Promise<Note[]> {
     ...rowToNote(row),
     isShared: Array.isArray(row.note_collaborators) && row.note_collaborators.length > 0,
   }));
+}
+
+/**
+ * Get notes shared with a user (where user is a collaborator)
+ */
+export async function getSharedNotes(userId: string): Promise<(Note & { collaboratorRole: 'editor' | 'viewer'; ownerName?: string })[]> {
+  // First get the note IDs where user is a collaborator
+  const { data: collaborations, error: collabError } = await supabase
+    .from('note_collaborators')
+    .select('note_id, role')
+    .eq('user_id', userId);
+
+  if (collabError) {
+    console.error('Error fetching collaborations:', collabError);
+    throw new Error(`Failed to fetch collaborations: ${collabError.message}`);
+  }
+
+  if (!collaborations || collaborations.length === 0) {
+    return [];
+  }
+
+  const noteIds = collaborations.map(c => c.note_id);
+  const roleMap = collaborations.reduce((acc, c) => {
+    acc[c.note_id] = c.role;
+    return acc;
+  }, {} as Record<string, 'editor' | 'viewer'>);
+
+  // Fetch the actual notes
+  const { data: notes, error: notesError } = await supabase
+    .from('notes')
+    .select('*')
+    .in('id', noteIds)
+    .order('created_at', { ascending: false });
+
+  if (notesError) {
+    console.error('Error fetching shared notes:', notesError);
+    throw new Error(`Failed to fetch shared notes: ${notesError.message}`);
+  }
+
+  // Get owner profiles
+  const ownerIds = [...new Set((notes || []).map(n => n.user_id))];
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, display_name')
+    .in('id', ownerIds);
+
+  const profileMap = (profiles || []).reduce((acc, p) => {
+    acc[p.id] = p.display_name;
+    return acc;
+  }, {} as Record<string, string>);
+
+  return (notes || []).map(row => ({
+    ...rowToNote(row),
+    isShared: true,
+    collaboratorRole: roleMap[row.id] || 'viewer',
+    ownerName: profileMap[row.user_id] || undefined,
+  }));
+}
+
+/**
+ * Get all notes (owned + shared) for a user
+ */
+export async function getAllNotesWithShared(userId: string): Promise<{
+  owned: Note[];
+  shared: (Note & { collaboratorRole: 'editor' | 'viewer'; ownerName?: string })[];
+}> {
+  const [owned, shared] = await Promise.all([
+    getNotes(userId),
+    getSharedNotes(userId),
+  ]);
+
+  return { owned, shared };
 }
 
 /**
@@ -225,26 +297,74 @@ export interface ActionItemWithNote extends ActionItem {
   noteId: string;
   noteTitle: string;
   noteCreatedAt: Date;
+  isFromSharedNote?: boolean;
+  collaboratorRole?: 'editor' | 'viewer';
+  ownerName?: string;
 }
 
 export async function getAllActionItems(userId: string): Promise<ActionItemWithNote[]> {
-  const { data, error } = await supabase
+  // Get owned notes with action items
+  const { data: ownedData, error: ownedError } = await supabase
     .from('notes')
     .select('id, title, action_items, created_at')
     .eq('user_id', userId)
     .not('action_items', 'is', null)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching action items:', error);
-    throw new Error(`Failed to fetch action items: ${error.message}`);
+  if (ownedError) {
+    console.error('Error fetching action items:', ownedError);
+    throw new Error(`Failed to fetch action items: ${ownedError.message}`);
+  }
+
+  // Get shared notes
+  const { data: collaborations } = await supabase
+    .from('note_collaborators')
+    .select('note_id, role')
+    .eq('user_id', userId);
+
+  let sharedData: any[] = [];
+  let roleMap: Record<string, 'editor' | 'viewer'> = {};
+  let ownerMap: Record<string, string> = {};
+
+  if (collaborations && collaborations.length > 0) {
+    const noteIds = collaborations.map(c => c.note_id);
+    roleMap = collaborations.reduce((acc, c) => {
+      acc[c.note_id] = c.role;
+      return acc;
+    }, {} as Record<string, 'editor' | 'viewer'>);
+
+    const { data: sharedNotes } = await supabase
+      .from('notes')
+      .select('id, title, action_items, created_at, user_id')
+      .in('id', noteIds)
+      .not('action_items', 'is', null)
+      .order('created_at', { ascending: false });
+
+    if (sharedNotes && sharedNotes.length > 0) {
+      sharedData = sharedNotes;
+
+      // Get owner profiles
+      const ownerIds = [...new Set(sharedNotes.map(n => n.user_id))];
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, display_name')
+        .in('id', ownerIds);
+
+      if (profiles) {
+        ownerMap = profiles.reduce((acc, p) => {
+          acc[p.id] = p.display_name;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+    }
   }
 
   // Flatten action items from all notes
   const allActionItems: ActionItemWithNote[] = [];
-  
-  if (data) {
-    for (const note of data) {
+
+  // Add owned notes action items
+  if (ownedData) {
+    for (const note of ownedData) {
       const actionItems = note.action_items as ActionItem[] || [];
       for (const item of actionItems) {
         allActionItems.push({
@@ -252,8 +372,25 @@ export async function getAllActionItems(userId: string): Promise<ActionItemWithN
           noteId: note.id,
           noteTitle: note.title,
           noteCreatedAt: new Date(note.created_at),
+          isFromSharedNote: false,
         });
       }
+    }
+  }
+
+  // Add shared notes action items
+  for (const note of sharedData) {
+    const actionItems = note.action_items as ActionItem[] || [];
+    for (const item of actionItems) {
+      allActionItems.push({
+        ...item,
+        noteId: note.id,
+        noteTitle: note.title,
+        noteCreatedAt: new Date(note.created_at),
+        isFromSharedNote: true,
+        collaboratorRole: roleMap[note.id],
+        ownerName: ownerMap[note.user_id],
+      });
     }
   }
 

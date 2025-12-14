@@ -198,6 +198,7 @@ export function useFriendsPresence(pollInterval: number = 60000): UseFriendsPres
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const friendIdsRef = useRef<Set<string>>(new Set());
 
   const fetchFriendsPresence = useCallback(async () => {
     try {
@@ -209,7 +210,10 @@ export function useFriendsPresence(pollInterval: number = 60000): UseFriendsPres
         throw new Error(data.error || 'Failed to fetch friends presence');
       }
 
-      setFriends(data.friends || []);
+      const friendsList = data.friends || [];
+      setFriends(friendsList);
+      // Keep track of friend IDs for filtering real-time updates
+      friendIdsRef.current = new Set(friendsList.map((f: OnlineFriend) => f.friendId));
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -226,23 +230,30 @@ export function useFriendsPresence(pollInterval: number = 60000): UseFriendsPres
     fetchFriendsPresence();
 
     // Subscribe to real-time presence changes
+    // Use a unique channel name to avoid conflicts
+    const channelName = `friends-presence-${Date.now()}`;
     channelRef.current = supabase
-      .channel('friends-presence')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*', // Listen to INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'user_presence',
         },
         (payload) => {
-          // Update the friend's presence in state if they're in our friends list
           const updatedPresence = payload.new as {
             user_id: string;
             status: PresenceStatus;
             last_seen_at: string;
           };
 
+          // Only update if this user is in our friends list
+          if (!updatedPresence?.user_id || !friendIdsRef.current.has(updatedPresence.user_id)) {
+            return;
+          }
+
+          // Update the friend's presence in state
           setFriends((prev) =>
             prev.map((friend) =>
               friend.friendId === updatedPresence.user_id
@@ -256,7 +267,13 @@ export function useFriendsPresence(pollInterval: number = 60000): UseFriendsPres
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Subscribed to presence updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Failed to subscribe to presence updates');
+        }
+      });
 
     // Fallback poll for reliability (less frequent now)
     if (pollInterval > 0) {
@@ -266,9 +283,11 @@ export function useFriendsPresence(pollInterval: number = 60000): UseFriendsPres
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
       if (pollRef.current) {
         clearInterval(pollRef.current);
+        pollRef.current = null;
       }
     };
   }, [fetchFriendsPresence, pollInterval]);

@@ -159,6 +159,38 @@ export interface Database {
           meeting_code?: string | null;
         };
       };
+      meeting_participants: {
+        Row: {
+          id: string;
+          meeting_id: string;
+          user_id: string;
+          role: 'host' | 'participant' | 'guest' | null;
+          is_active: boolean | null;
+          joined_at: string | null;
+          left_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_id: string;
+          user_id: string;
+          role?: 'host' | 'participant' | 'guest' | null;
+          is_active?: boolean | null;
+          joined_at?: string | null;
+          left_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          meeting_id?: string;
+          user_id?: string;
+          role?: 'host' | 'participant' | 'guest' | null;
+          is_active?: boolean | null;
+          joined_at?: string | null;
+          left_at?: string | null;
+          created_at?: string;
+        };
+      };
     };
   };
 }

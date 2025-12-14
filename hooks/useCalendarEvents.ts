@@ -7,6 +7,7 @@ import { CalendarEvent, CalendarStats } from '@/types/calendar';
 
 /**
  * Custom hook to fetch calendar events for a specific month
+ * Includes both owned and shared notes/meetings
  */
 export function useCalendarEvents(
   userId: string | null,
@@ -40,8 +41,8 @@ export function useCalendarEvents(
       const endDate = new Date(year, month + 1, 0, 23, 59, 59);
       const today = new Date();
 
-      // Fetch notes
-      const { data: notes, error: notesError } = await supabase
+      // Fetch owned notes
+      const { data: ownedNotes, error: notesError } = await supabase
         .from('notes')
         .select('id, title, created_at')
         .eq('user_id', userId)
@@ -50,17 +51,38 @@ export function useCalendarEvents(
 
       if (notesError) throw notesError;
 
-      // Fetch meetings
+      // Fetch shared notes (where user is collaborator)
+      const { data: collaborations } = await supabase
+        .from('note_collaborators')
+        .select('note_id, role')
+        .eq('user_id', userId);
+
+      let sharedNotes: any[] = [];
+      if (collaborations && collaborations.length > 0) {
+        const noteIds = collaborations.map(c => c.note_id);
+        const { data: shared } = await supabase
+          .from('notes')
+          .select('id, title, created_at, user_id')
+          .in('id', noteIds)
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString());
+        sharedNotes = shared || [];
+      }
+
+      // Combine owned and shared notes
+      const notes = [...(ownedNotes || []), ...sharedNotes];
+
+      // Fetch meetings where user is host OR guest
       const { data: meetings, error: meetingsError } = await supabase
         .from('meetings')
-        .select('id, room_id, title, created_at, scheduled_at, status')
-        .eq('host_id', userId)
+        .select('id, room_id, title, created_at, scheduled_at, status, host_id')
+        .or(`host_id.eq.${userId},guest_id.eq.${userId}`)
         .or(`created_at.gte.${startDate.toISOString()},scheduled_at.gte.${startDate.toISOString()}`);
 
       if (meetingsError) throw meetingsError;
 
-      // Fetch notes with action items that have deadlines
-      const { data: notesWithActions, error: actionsError } = await supabase
+      // Fetch owned notes with action items that have deadlines
+      const { data: ownedNotesWithActions, error: actionsError } = await supabase
         .from('notes')
         .select('id, title, action_items')
         .eq('user_id', userId)
@@ -68,17 +90,37 @@ export function useCalendarEvents(
 
       if (actionsError) throw actionsError;
 
+      // Fetch shared notes with action items
+      let sharedNotesWithActions: any[] = [];
+      if (collaborations && collaborations.length > 0) {
+        const noteIds = collaborations.map(c => c.note_id);
+        const { data: shared } = await supabase
+          .from('notes')
+          .select('id, title, action_items, user_id')
+          .in('id', noteIds)
+          .not('action_items', 'is', null);
+        sharedNotesWithActions = shared || [];
+      }
+
+      const notesWithActions = [...(ownedNotesWithActions || []), ...sharedNotesWithActions];
+
+      // Create a set of shared note IDs for quick lookup
+      const sharedNoteIds = new Set(sharedNotes.map(n => n.id));
+      const sharedActionNoteIds = new Set(sharedNotesWithActions.map(n => n.id));
+
       // Transform data into calendar events
       const calendarEvents: CalendarEvent[] = [];
 
       // Add notes
       (notes || []).forEach((note: any) => {
+        const isShared = sharedNoteIds.has(note.id);
         calendarEvents.push({
           id: `note-${note.id}`,
           type: 'note',
           title: note.title,
           date: new Date(note.created_at),
           noteId: note.id,
+          isShared,
         });
       });
 
@@ -86,6 +128,7 @@ export function useCalendarEvents(
       (meetings || []).forEach((meeting: any) => {
         const meetingDate = meeting.scheduled_at || meeting.created_at;
         const dateObj = new Date(meetingDate);
+        const isShared = meeting.host_id !== userId; // User is guest, not host
         if (dateObj >= startDate && dateObj <= endDate) {
           calendarEvents.push({
             id: `meeting-${meeting.id}`,
@@ -94,12 +137,14 @@ export function useCalendarEvents(
             date: dateObj,
             meetingId: meeting.room_id,
             status: meeting.status === 'completed' ? 'completed' : 'pending',
+            isShared,
           });
         }
       });
 
       // Add action items with deadlines
       (notesWithActions || []).forEach((note: any) => {
+        const isShared = sharedActionNoteIds.has(note.id);
         const actionItems = note.action_items || [];
         actionItems.forEach((item: any) => {
           if (item.deadline) {
@@ -114,6 +159,7 @@ export function useCalendarEvents(
                 status: item.completed ? 'completed' : 'pending',
                 priority: item.priority,
                 noteId: note.id,
+                isShared,
               });
             }
           }

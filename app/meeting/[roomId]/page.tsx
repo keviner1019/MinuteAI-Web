@@ -9,7 +9,7 @@ import { RecordingCountdown } from '@/components/meeting/RecordingCountdown';
 import { VideoGrid } from '@/components/meeting/VideoGrid';
 import { ParticipantCount } from '@/components/meeting/ParticipantCount';
 import Header from '@/components/ui/Header';
-import { useWebRTC } from '@/hooks/useWebRTC';
+import { useTwilioVideo } from '@/hooks/useTwilioVideo';
 import { useTranscription } from '@/hooks/useTranscription';
 import { useCompositeRecorder } from '@/hooks/useCompositeRecorder';
 import { createClient } from '@/lib/supabase/client';
@@ -75,7 +75,7 @@ export default function MeetingRoom() {
     isHost,
     getPeerConnection,
     participants,
-  } = useWebRTC(roomId);
+  } = useTwilioVideo(roomId);
 
 
   // Create a mixed audio stream for transcription (local + remote)

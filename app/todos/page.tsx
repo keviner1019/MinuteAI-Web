@@ -25,6 +25,9 @@ import {
   ChevronUp,
   Target,
   Zap,
+  Share2,
+  Eye,
+  Users,
 } from 'lucide-react';
 import { ActionItem } from '@/types';
 import { formatDeadline, isOverdue } from '@/utils/timeFormatter';
@@ -33,6 +36,9 @@ interface ActionItemWithNote extends ActionItem {
   noteId: string;
   noteTitle: string;
   noteCreatedAt: Date;
+  isFromSharedNote?: boolean;
+  collaboratorRole?: 'editor' | 'viewer';
+  ownerName?: string;
 }
 
 export default function TodosPage() {
@@ -209,11 +215,23 @@ export default function TodosPage() {
 
   // Group by note
   const todosByNote = useMemo(() => {
-    const groups: { [noteTitle: string]: { noteId: string; todos: ActionItemWithNote[] } } = {};
-    
+    const groups: { [noteTitle: string]: {
+      noteId: string;
+      todos: ActionItemWithNote[];
+      isShared: boolean;
+      collaboratorRole?: 'editor' | 'viewer';
+      ownerName?: string;
+    } } = {};
+
     filteredAndSortedTodos.forEach((todo) => {
       if (!groups[todo.noteTitle]) {
-        groups[todo.noteTitle] = { noteId: todo.noteId, todos: [] };
+        groups[todo.noteTitle] = {
+          noteId: todo.noteId,
+          todos: [],
+          isShared: todo.isFromSharedNote || false,
+          collaboratorRole: todo.collaboratorRole,
+          ownerName: todo.ownerName,
+        };
       }
       groups[todo.noteTitle].todos.push(todo);
     });
@@ -229,7 +247,7 @@ export default function TodosPage() {
       pending: todos.filter((t) => !t.completed).length,
       overdue: todos.filter((t) => !t.completed && t.deadline && isOverdue(t.deadline)).length,
       highPriority: todos.filter((t) => !t.completed && t.priority === 'high').length,
-      noPriority: todos.filter((t) => !t.priority).length,
+      shared: todos.filter((t) => t.isFromSharedNote).length,
     };
   }, [todos]);
 
@@ -320,9 +338,9 @@ export default function TodosPage() {
             <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg p-5 hover:shadow-xl hover:scale-105 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 delay-500 group">
               <div className="absolute top-0 right-0 w-20 h-20 bg-white rounded-bl-full opacity-10 group-hover:scale-150 transition-transform"></div>
               <div className="relative">
-                <Sparkles className="h-6 w-6 text-white mb-2 group-hover:animate-pulse" />
-                <p className="text-3xl font-bold text-white">{stats.noPriority}</p>
-                <p className="text-xs text-purple-100 font-medium">No Priority</p>
+                <Users className="h-6 w-6 text-white mb-2 group-hover:animate-pulse" />
+                <p className="text-3xl font-bold text-white">{stats.shared}</p>
+                <p className="text-xs text-purple-100 font-medium">Shared</p>
               </div>
             </div>
           </div>
@@ -427,16 +445,18 @@ export default function TodosPage() {
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 Action items from your notes will appear here. Start creating notes to get organized!
               </p>
-              <Button variant="primary" onClick={() => router.push('/dashboard')}>
-                Go to Dashboard
-              </Button>
+              <div className="flex justify-center">
+                <Button variant="primary" onClick={() => router.push('/dashboard')}>
+                  Go to Dashboard
+                </Button>
+              </div>
             </div>
           )}
 
           {/* Todos List - Grouped by Note */}
           {!loading && !error && filteredAndSortedTodos.length > 0 && (
             <div className="space-y-6">
-              {Object.entries(todosByNote).map(([noteTitle, { noteId, todos: noteTodos }], groupIndex) => (
+              {Object.entries(todosByNote).map(([noteTitle, { noteId, todos: noteTodos, isShared, collaboratorRole, ownerName }], groupIndex) => (
                 <div 
                   key={noteId}
                   className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -448,15 +468,28 @@ export default function TodosPage() {
                     className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-all group"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-                        <FileText className="h-5 w-5 text-purple-600" />
+                      <div className={`p-2 rounded-lg transition-colors ${isShared ? 'bg-indigo-100 group-hover:bg-indigo-200' : 'bg-purple-100 group-hover:bg-purple-200'}`}>
+                        {isShared ? <Share2 className="h-5 w-5 text-indigo-600" /> : <FileText className="h-5 w-5 text-purple-600" />}
                       </div>
                       <div className="text-left">
-                        <h3 className="font-bold text-gray-900 text-lg group-hover:text-purple-600 transition-colors">
-                          {noteTitle}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-purple-600 transition-colors">
+                            {noteTitle}
+                          </h3>
+                          {isShared && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              collaboratorRole === 'viewer'
+                                ? 'bg-gray-100 text-gray-600'
+                                : 'bg-indigo-100 text-indigo-700'
+                            }`}>
+                              {collaboratorRole === 'viewer' ? <Eye className="h-3 w-3" /> : <Edit2 className="h-3 w-3" />}
+                              {collaboratorRole === 'viewer' ? 'View only' : 'Can edit'}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-600 font-medium">
                           {noteTodos.length} {noteTodos.length === 1 ? 'todo' : 'todos'}
+                          {isShared && ownerName && <span className="ml-2 text-indigo-600">Shared by {ownerName}</span>}
                         </p>
                       </div>
                     </div>
@@ -501,11 +534,19 @@ export default function TodosPage() {
                             style={{ animationDelay: `${index * 30}ms` }}
                           >
                             <div className="flex items-start gap-3">
-                              {/* Checkbox */}
+                              {/* Checkbox - disabled for view-only collaborators */}
                               <button
-                                onClick={() => handleToggleComplete(noteId, todo.id, todo.completed)}
+                                onClick={() => {
+                                  if (todo.isFromSharedNote && todo.collaboratorRole === 'viewer') return;
+                                  handleToggleComplete(noteId, todo.id, todo.completed);
+                                }}
+                                disabled={todo.isFromSharedNote && todo.collaboratorRole === 'viewer'}
                                 className={`
-                                  mt-1 flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 hover:scale-110
+                                  mt-1 flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300
+                                  ${todo.isFromSharedNote && todo.collaboratorRole === 'viewer'
+                                    ? 'cursor-not-allowed opacity-50'
+                                    : 'hover:scale-110'
+                                  }
                                   ${todo.completed
                                     ? 'bg-gradient-to-r from-green-500 to-emerald-500 border-green-500 shadow-lg shadow-green-200'
                                     : 'border-gray-300 hover:border-purple-500 hover:shadow-lg hover:shadow-purple-100'
@@ -594,8 +635,8 @@ export default function TodosPage() {
                                 )}
                               </div>
 
-                              {/* Action Buttons */}
-                              {!isEditing && (
+                              {/* Action Buttons - Hidden for view-only collaborators */}
+                              {!isEditing && (!todo.isFromSharedNote || todo.collaboratorRole === 'editor') && (
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => handleStartEdit(todo)}
@@ -612,6 +653,10 @@ export default function TodosPage() {
                                     <Trash2 className="h-4 w-4 text-red-600 group-hover:rotate-12 transition-transform" />
                                   </button>
                                 </div>
+                              )}
+                              {/* View-only indicator */}
+                              {!isEditing && todo.isFromSharedNote && todo.collaboratorRole === 'viewer' && (
+                                <span className="text-xs text-gray-400 italic">View only</span>
                               )}
                             </div>
                           </div>
