@@ -245,9 +245,9 @@ export default function CreateMeetingModal({
       case 'away':
         return 'bg-yellow-500';
       case 'busy':
-        return 'bg-red-500';
+        return 'bg-orange-500';
       default:
-        return 'bg-gray-400';
+        return 'bg-red-500';
     }
   };
 
@@ -451,11 +451,19 @@ export default function CreateMeetingModal({
                                 {(friend.displayName || friend.email || '?')[0].toUpperCase()}
                               </div>
                             )}
-                            <span
-                              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(
-                                friend.status
-                              )}`}
-                            />
+                            <span className="absolute bottom-0 right-0">
+                              <span
+                                className={`block w-3 h-3 rounded-full border-2 border-white ${getStatusColor(
+                                  friend.status
+                                )}`}
+                              />
+                              {friend.status === 'online' && (
+                                <>
+                                  <span className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
+                                  <span className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                                </>
+                              )}
+                            </span>
                           </div>
                           <span className="text-sm font-medium text-gray-900">
                             {friend.displayName || friend.email}

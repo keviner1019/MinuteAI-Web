@@ -62,6 +62,9 @@ export function AudioCall({
   // Track stream IDs to detect when streams are recreated
   const streamIds = useRef<Map<string, string>>(new Map());
 
+  // Track pending audio elements that need user interaction to play
+  const pendingAudioPlay = useRef<Set<string>>(new Set());
+
   // Setup audio playback for each remote participant
   useEffect(() => {
     participantList.forEach((participant) => {
@@ -73,6 +76,7 @@ export function AudioCall({
           existingAudioEl.srcObject = null;
         }
         streamIds.current.delete(participant.userId);
+        pendingAudioPlay.current.delete(participant.userId);
         return;
       }
 
@@ -100,28 +104,58 @@ export function AudioCall({
         audioEl.srcObject = participant.stream;
         streamIds.current.set(participant.userId, currentStreamId);
 
-        audioEl.play().catch((err) => {
-          console.warn('Audio autoplay blocked:', err);
-          // Try playing on user interaction
-          const playOnInteraction = () => {
-            audioEl?.play().catch(() => {});
-            document.removeEventListener('click', playOnInteraction);
-          };
-          document.addEventListener('click', playOnInteraction, { once: true });
-        });
+        // Use a small delay to allow stream to stabilize
+        setTimeout(() => {
+          if (!audioEl) return;
+          audioEl.play().catch((err) => {
+            console.warn('Audio autoplay blocked:', err);
+            pendingAudioPlay.current.add(participant.userId);
+          });
+        }, 100);
       }
     });
 
     // Cleanup removed participants
-    audioRefs.current.forEach((audioEl, userId) => {
-      if (!participants.has(userId)) {
-        console.log(`🧹 Cleaning up audio for removed participant: ${userId}`);
+    audioRefs.current.forEach((audioEl, oderId) => {
+      // Find by oderId which is based on how participants map uses keys
+      const stillExists = participantList.some(p => p.userId === oderId);
+      if (!stillExists) {
+        console.log(`🧹 Cleaning up audio for removed participant: ${oderId}`);
         audioEl.srcObject = null;
-        audioRefs.current.delete(userId);
-        streamIds.current.delete(userId);
+        audioRefs.current.delete(oderId);
+        streamIds.current.delete(oderId);
+        pendingAudioPlay.current.delete(oderId);
       }
     });
   }, [participantList, participants]);
+
+  // Global click handler to resume any blocked audio
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      if (pendingAudioPlay.current.size === 0) return;
+
+      pendingAudioPlay.current.forEach((userId) => {
+        const audioEl = audioRefs.current.get(userId);
+        if (audioEl && audioEl.srcObject) {
+          audioEl.play().then(() => {
+            console.log(`🔊 Audio resumed for ${userId} after user interaction`);
+            pendingAudioPlay.current.delete(userId);
+          }).catch(() => {});
+        }
+      });
+    };
+
+    // Listen for any user interaction to resume audio
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
 
   // Audio level visualization for local stream
   useEffect(() => {

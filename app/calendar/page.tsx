@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
@@ -16,19 +16,53 @@ import {
 } from 'lucide-react';
 import { CalendarEvent, CalendarStats } from '@/types/calendar';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+import { highlightElementAfterDelay } from '@/lib/utils/highlight';
 
-export default function CalendarPage() {
+function CalendarPageContent() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [initializedFromUrl, setInitializedFromUrl] = useState(false);
+
+  // Read URL query parameters for navigation from toast
+  useEffect(() => {
+    if (initializedFromUrl) return;
+
+    const yearParam = searchParams.get('year');
+    const monthParam = searchParams.get('month');
+    const dayParam = searchParams.get('day');
+
+    if (yearParam && monthParam) {
+      const year = parseInt(yearParam);
+      const month = parseInt(monthParam);
+      const day = dayParam ? parseInt(dayParam) : null;
+
+      setCurrentYear(year);
+      setCurrentMonth(month);
+
+      if (day) {
+        const targetDate = new Date(year, month, day);
+        setSelectedDate(targetDate);
+
+        // Highlight the calendar day cell after a short delay
+        setTimeout(() => {
+          highlightElementAfterDelay(`calendar-day-${day}`, 300, 'calendar');
+        }, 500);
+      }
+
+      setInitializedFromUrl(true);
+    }
+  }, [searchParams, initializedFromUrl]);
 
   const { events, stats, loading, error, refetch, toggleActionItem } = useCalendarEvents(
     user?.id || null,
     currentYear,
-    currentMonth
+    currentMonth,
+    user?.email || null
   );
 
   const nextMonth = () => {
@@ -201,5 +235,28 @@ export default function CalendarPage() {
         </main>
       </div>
     </ProtectedRoute>
+  );
+}
+
+function CalendarLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading calendar...</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={<CalendarLoadingFallback />}>
+      <CalendarPageContent />
+    </Suspense>
   );
 }

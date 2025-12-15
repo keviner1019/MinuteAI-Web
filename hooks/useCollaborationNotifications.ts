@@ -12,10 +12,20 @@ interface NotificationPayload {
     | 'action-item-completed'
     | 'action-item-updated'
     | 'action-item-deleted'
-    | 'note-updated';
-  noteId: string;
+    | 'note-updated'
+    | 'invitation-accepted'
+    | 'invitation-declined';
+  noteId?: string;
+  meetingId?: string;
+  roomId?: string;
+  meetingTitle?: string;
   noteTitle?: string;
-  triggeredBy: {
+  triggeredBy?: {
+    id: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+  respondedBy?: {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
@@ -24,6 +34,9 @@ interface NotificationPayload {
   timestamp: string;
   excludeUserId?: string;
 }
+
+// Note: MeetingInvitePayload handling has been moved to MeetingNotificationContext
+// which shows the proper MeetingInvitationModal with accept/decline and countdown timer
 
 // Singleton Pusher instance
 let pusherInstance: Pusher | null = null;
@@ -40,9 +53,10 @@ function getPusherInstance(): Pusher {
 
 /**
  * Hook that listens for collaboration notifications (invites, action item updates)
+ * Note: Meeting invites are handled by MeetingNotificationContext which shows the proper modal
  */
 export function useCollaborationNotifications() {
-  const { showCollaboratorAddedToast, showActionItemUpdateToast } = useToast();
+  const { showCollaboratorAddedToast, showActionItemUpdateToast, showToast } = useToast();
   const channelRef = useRef<Channel | null>(null);
   const userIdRef = useRef<string | null>(null);
   const processedEventsRef = useRef<Set<string>>(new Set());
@@ -50,16 +64,17 @@ export function useCollaborationNotifications() {
   const handleNotification = useCallback(
     (payload: NotificationPayload) => {
       // Skip if this event was triggered by the current user
-      if (payload.triggeredBy.id === userIdRef.current) return;
+      if (payload.triggeredBy?.id === userIdRef.current) return;
+      if (payload.respondedBy?.id === userIdRef.current) return;
       if (payload.excludeUserId === userIdRef.current) return;
 
       // Create unique event key to avoid duplicates
-      const eventKey = `${payload.type}-${payload.noteId}-${payload.timestamp}`;
+      const eventKey = `${payload.type}-${payload.noteId || payload.meetingId}-${payload.timestamp}`;
       if (processedEventsRef.current.has(eventKey)) return;
       processedEventsRef.current.add(eventKey);
 
-      const senderName = payload.triggeredBy.displayName || 'Someone';
-      const avatarUrl = payload.triggeredBy.avatarUrl;
+      const senderName = payload.triggeredBy?.displayName || payload.respondedBy?.displayName || 'Someone';
+      const avatarUrl = payload.triggeredBy?.avatarUrl || payload.respondedBy?.avatarUrl;
 
       switch (payload.type) {
         case 'collaborator-added':
@@ -92,10 +107,32 @@ export function useCollaborationNotifications() {
             payload.data?.itemId
           );
           break;
+        case 'invitation-accepted':
+          showToast({
+            type: 'success',
+            title: `${senderName} accepted`,
+            message: `Joining "${payload.meetingTitle}"`,
+            avatar: avatarUrl,
+            duration: 5000,
+            navigateTo: payload.roomId ? `/meeting/${payload.roomId}` : undefined,
+          });
+          break;
+        case 'invitation-declined':
+          showToast({
+            type: 'info',
+            title: `${senderName} declined`,
+            message: `Can't join "${payload.meetingTitle}"`,
+            avatar: avatarUrl,
+            duration: 5000,
+          });
+          break;
       }
     },
-    [showCollaboratorAddedToast, showActionItemUpdateToast]
+    [showCollaboratorAddedToast, showActionItemUpdateToast, showToast]
   );
+
+  // Note: meeting-invite handler removed - now handled by MeetingNotificationContext
+  // which shows the proper MeetingInvitationModal with accept/decline and 60-second countdown
 
   useEffect(() => {
     const supabase = createClient();
@@ -113,7 +150,10 @@ export function useCollaborationNotifications() {
       const channelName = `private-user-${session.user.id}`;
       channelRef.current = pusher.subscribe(channelName);
 
+      // Bind notification handler for collaboration events
       channelRef.current.bind('notification', handleNotification);
+
+      // Note: meeting-invite is handled by MeetingNotificationContext which shows the proper modal
 
       // Clean up old processed events periodically
       const cleanupInterval = setInterval(() => {
@@ -148,7 +188,7 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
   const handleNoteNotification = useCallback(
     (payload: NotificationPayload) => {
       // Skip if this event was triggered by the current user
-      if (payload.triggeredBy.id === userIdRef.current) return;
+      if (payload.triggeredBy?.id === userIdRef.current) return;
       if (payload.excludeUserId === userIdRef.current) return;
 
       // Create unique event key to avoid duplicates
@@ -156,8 +196,8 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
       if (processedEventsRef.current.has(eventKey)) return;
       processedEventsRef.current.add(eventKey);
 
-      const senderName = payload.triggeredBy.displayName || 'Someone';
-      const avatarUrl = payload.triggeredBy.avatarUrl;
+      const senderName = payload.triggeredBy?.displayName || 'Someone';
+      const avatarUrl = payload.triggeredBy?.avatarUrl;
 
       switch (payload.type) {
         case 'action-item-completed':

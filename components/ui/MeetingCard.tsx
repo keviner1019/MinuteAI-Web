@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, Check, Hash, Link as LinkIcon } from 'lucide-react';
+import { Copy, Check, Hash, Link as LinkIcon, UserPlus, Users } from 'lucide-react';
 import Badge from './Badge';
 
 interface MeetingCardProps {
@@ -49,14 +49,26 @@ export function MeetingCard({ meeting, onJoin, onViewSummary }: MeetingCardProps
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-semibold text-gray-900">{meeting.title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-gray-900">{meeting.title}</h3>
+              {meeting.isInvited && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                  <UserPlus size={10} /> Invited
+                </span>
+              )}
+              {meeting.isParticipant && !meeting.isInvited && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  <Users size={10} /> Participant
+                </span>
+              )}
+            </div>
             <Badge variant={getStatusVariant(meeting.status)}>{meeting.status}</Badge>
           </div>
 
           <div className="flex items-center gap-3 text-xs text-gray-600 mb-3">
-            <span>📅 {new Date(meeting.created_at).toLocaleDateString()}</span>
+            <span>📅 {new Date(meeting.scheduled_at || meeting.created_at).toLocaleDateString()}</span>
             <span>•</span>
-            <span>{new Date(meeting.created_at).toLocaleTimeString()}</span>
+            <span>{new Date(meeting.scheduled_at || meeting.created_at).toLocaleTimeString()}</span>
             {meeting.duration && (
               <>
                 <span>•</span>

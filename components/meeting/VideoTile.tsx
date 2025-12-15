@@ -29,9 +29,20 @@ export function VideoTile({
     if (stream) {
       if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch((err) => {
-          console.warn('Video autoplay blocked:', err);
-        });
+        // Delay play to allow stream to stabilize
+        const playVideo = () => {
+          if (!videoRef.current) return;
+          videoRef.current.play().catch((err) => {
+            console.warn('Video autoplay blocked:', err);
+            // Add click listener to resume on user interaction
+            const handleClick = () => {
+              videoRef.current?.play().catch(() => {});
+              document.removeEventListener('click', handleClick);
+            };
+            document.addEventListener('click', handleClick, { once: true });
+          });
+        };
+        setTimeout(playVideo, 100);
       }
     } else {
       if (videoRef.current.srcObject) {
@@ -44,26 +55,26 @@ export function VideoTile({
   const hasVideo = stream && stream.getVideoTracks().length > 0;
 
   if (!hasVideo) {
-    // No video - show avatar placeholder
+    // No video - show avatar placeholder with light theme
     return (
       <div
-        className={`relative w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center rounded-xl overflow-hidden transition-all duration-300 ${
-          isSpeaking ? 'ring-4 ring-emerald-500 ring-offset-2 ring-offset-slate-900' : ''
+        className={`relative w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center rounded-xl overflow-hidden transition-all duration-300 border border-slate-200 ${
+          isSpeaking ? 'ring-4 ring-emerald-500 ring-offset-2 ring-offset-white' : ''
         }`}
       >
         {/* Subtle background pattern */}
-        <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0 opacity-10">
           <div
             className="absolute inset-0"
             style={{
-              backgroundImage: 'radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)',
+              backgroundImage: 'radial-gradient(circle at 1px 1px, #64748b 1px, transparent 0)',
               backgroundSize: '24px 24px',
             }}
           />
         </div>
 
-        <div className="text-center flex flex-col items-center justify-center relative z-10">
-          <div className="relative mb-4">
+        <div className="text-center flex flex-col items-center justify-center relative z-10 gap-3">
+          <div className="relative">
             {/* Speaking glow effect */}
             {isSpeaking && (
               <div className="absolute inset-0 rounded-full bg-emerald-400/30 blur-xl scale-150 animate-pulse" />
@@ -72,23 +83,14 @@ export function VideoTile({
               src={userAvatar}
               alt={userName || 'Guest'}
               size="xl"
-              className={`w-20 h-20 md:w-24 md:h-24 mx-auto relative z-10 ${
-                isSpeaking ? 'ring-4 ring-emerald-400' : 'ring-2 ring-white/20'
-              }`}
+              isSpeaking={isSpeaking}
+              className="w-20 h-20 md:w-24 md:h-24 mx-auto relative z-10"
             />
           </div>
-          <p className="text-white text-base font-medium mb-2">{isLocal ? 'You' : userName || 'Guest'}</p>
-          <div className="flex items-center gap-2 text-slate-400 bg-slate-700/50 px-3 py-1 rounded-full">
+          <p className="text-slate-700 text-base font-medium max-w-[120px] truncate">{isLocal ? 'You' : userName || 'Guest'}</p>
+          <div className="flex items-center gap-2 text-slate-500 bg-slate-300/50 px-3 py-1 rounded-full">
             <VideoOff className="w-3.5 h-3.5" />
             <span className="text-xs font-medium">Camera Off</span>
-          </div>
-        </div>
-
-        {/* Name Badge */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-2">
-          <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2">
-            {isLocal && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
-            <span className="text-white text-sm font-medium">{isLocal ? 'You' : userName || 'Guest'}</span>
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -16,7 +17,7 @@ interface Meeting {
   id: string;
   title: string;
   room_id: string;
-  scheduled_start: string;
+  scheduled_at: string;
   status: string;
 }
 
@@ -28,11 +29,18 @@ interface Meeting {
  */
 export function useReminderNotifications() {
   const { showMeetingReminderToast, showDeadlineReminderToast } = useToast();
+  const pathname = usePathname();
   const userIdRef = useRef<string | null>(null);
   const userEmailRef = useRef<string | null>(null);
   const notifiedMeetingsRef = useRef<Set<string>>(new Set());
   const notifiedTodosRef = useRef<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper to check if user is currently in a specific meeting room
+  const isInMeetingRoom = useCallback((roomId: string): boolean => {
+    if (!pathname) return false;
+    return pathname === `/meeting/${roomId}`;
+  }, [pathname]);
 
   const checkUpcomingMeetings = useCallback(async () => {
     if (!userIdRef.current) return;
@@ -46,9 +54,9 @@ export function useReminderNotifications() {
       // Get meetings starting in 15-20 minutes that user is involved in
       const { data: meetings } = await supabase
         .from('meetings')
-        .select('id, title, room_id, scheduled_start, status')
-        .gte('scheduled_start', fifteenMinutesFromNow.toISOString())
-        .lte('scheduled_start', twentyMinutesFromNow.toISOString())
+        .select('id, title, room_id, scheduled_at, status')
+        .gte('scheduled_at', fifteenMinutesFromNow.toISOString())
+        .lte('scheduled_at', twentyMinutesFromNow.toISOString())
         .eq('status', 'scheduled');
 
       if (!meetings || meetings.length === 0) return;
@@ -83,7 +91,13 @@ export function useReminderNotifications() {
         const isHost = hostId === userIdRef.current;
 
         if (isParticipant || isInvited || isHost) {
-          const scheduledTime = new Date(meeting.scheduled_start);
+          // Skip reminder if user is already in this meeting room
+          if (isInMeetingRoom(meeting.room_id)) {
+            notifiedMeetingsRef.current.add(meeting.id); // Mark as notified to prevent future reminders
+            continue;
+          }
+
+          const scheduledTime = new Date(meeting.scheduled_at);
           const minutesUntil = Math.round((scheduledTime.getTime() - now.getTime()) / 60000);
 
           showMeetingReminderToast(meeting.title, minutesUntil, meeting.room_id);
@@ -93,7 +107,7 @@ export function useReminderNotifications() {
     } catch (error) {
       console.error('Error checking upcoming meetings:', error);
     }
-  }, [showMeetingReminderToast]);
+  }, [showMeetingReminderToast, isInMeetingRoom]);
 
   const checkUpcomingDeadlines = useCallback(async () => {
     if (!userIdRef.current) return;

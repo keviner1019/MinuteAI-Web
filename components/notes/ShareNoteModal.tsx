@@ -443,10 +443,22 @@ function FriendSelectRow({ friend, isSelected, onToggle }: FriendSelectRowProps)
             {(friend.displayName || friend.email || 'F')[0].toUpperCase()}
           </div>
         )}
-        {/* Online indicator */}
-        {friend.status === 'online' && (
-          <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 rounded-full border-2 border-white" />
-        )}
+        {/* Presence indicator */}
+        <span className="absolute -bottom-0.5 -right-0.5">
+          <span
+            className={`block h-3 w-3 rounded-full border-2 border-white ${
+              friend.status === 'online' ? 'bg-green-500' :
+              friend.status === 'away' ? 'bg-yellow-500' :
+              friend.status === 'busy' ? 'bg-orange-500' : 'bg-red-500'
+            }`}
+          />
+          {friend.status === 'online' && (
+            <>
+              <span className="absolute inset-0 h-3 w-3 bg-green-500 rounded-full animate-ping opacity-75" />
+              <span className="absolute inset-0 h-3 w-3 bg-green-400 rounded-full animate-pulse" />
+            </>
+          )}
+        </span>
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 truncate">

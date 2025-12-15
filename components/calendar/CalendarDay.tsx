@@ -26,6 +26,7 @@ export default function CalendarDay({
 
   return (
     <button
+      id={isCurrentMonth ? `calendar-day-${date.getDate()}` : undefined}
       onClick={onClick}
       className={`
         min-h-[100px] p-2 border-b border-r border-gray-100 text-left

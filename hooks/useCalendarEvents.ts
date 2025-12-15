@@ -12,7 +12,8 @@ import { CalendarEvent, CalendarStats } from '@/types/calendar';
 export function useCalendarEvents(
   userId: string | null,
   year: number,
-  month: number
+  month: number,
+  userEmail?: string | null
 ) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [stats, setStats] = useState<CalendarStats>({
@@ -72,14 +73,51 @@ export function useCalendarEvents(
       // Combine owned and shared notes
       const notes = [...(ownedNotes || []), ...sharedNotes];
 
-      // Fetch meetings where user is host OR guest
-      const { data: meetings, error: meetingsError } = await supabase
+      // Fetch meetings where user is host
+      const { data: hostedMeetings, error: hostedError } = await supabase
         .from('meetings')
         .select('id, room_id, title, created_at, scheduled_at, status, host_id')
-        .or(`host_id.eq.${userId},guest_id.eq.${userId}`)
-        .or(`created_at.gte.${startDate.toISOString()},scheduled_at.gte.${startDate.toISOString()}`);
+        .eq('host_id', userId);
 
-      if (meetingsError) throw meetingsError;
+      if (hostedError) throw hostedError;
+
+      // Fetch meetings where user is a participant
+      const { data: participantMeetings } = await supabase
+        .from('meeting_participants')
+        .select('meeting_id, meetings(id, room_id, title, created_at, scheduled_at, status, host_id)')
+        .eq('user_id', userId);
+
+      // Fetch meetings where user is invited (via email)
+      let invitedMeetings: any[] = [];
+      if (userEmail) {
+        const { data: invitations } = await supabase
+          .from('meeting_invitations')
+          .select('meeting_id, meetings(id, room_id, title, created_at, scheduled_at, status, host_id)')
+          .eq('invitee_email', userEmail.toLowerCase())
+          .eq('status', 'pending');
+
+        if (invitations) {
+          invitedMeetings = invitations
+            .filter((inv: any) => inv.meetings)
+            .map((inv: any) => inv.meetings);
+        }
+      }
+
+      // Combine all meetings and deduplicate by ID
+      const allMeetings: any[] = [
+        ...(hostedMeetings || []),
+        ...(participantMeetings?.filter((p: any) => p.meetings).map((p: any) => p.meetings) || []),
+        ...invitedMeetings,
+      ];
+
+      // Deduplicate by meeting ID
+      const meetingMap = new Map<string, any>();
+      allMeetings.forEach((meeting: any) => {
+        if (meeting && !meetingMap.has(meeting.id)) {
+          meetingMap.set(meeting.id, meeting);
+        }
+      });
+      const meetings = Array.from(meetingMap.values());
 
       // Fetch owned notes with action items that have deadlines
       const { data: ownedNotesWithActions, error: actionsError } = await supabase
@@ -192,7 +230,7 @@ export function useCalendarEvents(
     } finally {
       setLoading(false);
     }
-  }, [userId, year, month, supabase]);
+  }, [userId, year, month, userEmail, supabase]);
 
   useEffect(() => {
     fetchEvents();

@@ -12,8 +12,8 @@ interface PresenceIndicatorProps {
 const statusColors: Record<PresenceStatus, string> = {
   online: 'bg-green-500',
   away: 'bg-yellow-500',
-  busy: 'bg-red-500',
-  offline: 'bg-gray-400',
+  busy: 'bg-orange-500',
+  offline: 'bg-red-500',
 };
 
 const statusText: Record<PresenceStatus, string> = {
@@ -50,15 +50,26 @@ export default function PresenceIndicator({
   showText = false,
   size = 'md',
 }: PresenceIndicatorProps) {
-  const isOnline = status !== 'offline';
+  const isOnline = status === 'online';
 
   return (
     <div className="flex items-center gap-1.5">
-      <span
-        className={`${sizeClasses[size]} ${statusColors[status]} rounded-full ${
-          isOnline ? 'animate-pulse' : ''
-        }`}
-      />
+      <span className="relative">
+        <span
+          className={`block ${sizeClasses[size]} ${statusColors[status]} rounded-full`}
+        />
+        {/* Wave effect for online status */}
+        {isOnline && (
+          <>
+            <span
+              className={`absolute inset-0 ${sizeClasses[size]} bg-green-500 rounded-full animate-ping opacity-75`}
+            />
+            <span
+              className={`absolute inset-0 ${sizeClasses[size]} bg-green-400 rounded-full animate-pulse`}
+            />
+          </>
+        )}
+      </span>
       {showText && (
         <span className="text-xs text-gray-500">
           {status === 'offline' && lastSeenAt

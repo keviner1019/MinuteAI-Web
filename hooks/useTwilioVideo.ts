@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   connect,
   Room,
-  LocalTrack,
   RemoteParticipant,
   LocalVideoTrack,
   LocalAudioTrack,
@@ -14,7 +13,7 @@ import {
   createLocalAudioTrack,
   createLocalVideoTrack,
 } from 'twilio-video';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
 import { Participant } from '@/types';
 
 interface UseTwilioVideoReturn {
@@ -39,7 +38,7 @@ interface UseTwilioVideoReturn {
   remoteStream: MediaStream | null;
   remoteStreamVersion: number;
   remoteVideoStream: MediaStream | null;
-  remoteUserProfile: { display_name: string | null; avatar_url: string | null } | null;
+  remoteUserProfile: { id: string; display_name: string | null; avatar_url: string | null } | null;
   isRemoteMuted: boolean;
   isRemoteRecording: boolean;
 
@@ -52,15 +51,9 @@ interface UseTwilioVideoReturn {
   peerLeft: boolean;
 }
 
-// Create untyped Supabase client to avoid strict type checking issues
-function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey);
-}
-
 export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
-  const supabase = createClient();
+  // Use singleton Supabase client to avoid multiple GoTrueClient instances
+  const supabase = useMemo(() => createClient(), []);
 
   // Room and tracks
   const roomRef = useRef<Room | null>(null);
@@ -88,12 +81,27 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [remoteStreamVersion, setRemoteStreamVersion] = useState(0);
   const [remoteVideoStream, setRemoteVideoStream] = useState<MediaStream | null>(null);
-  const [remoteUserProfile, setRemoteUserProfile] = useState<{ display_name: string | null; avatar_url: string | null } | null>(null);
+  const [remoteUserProfile, setRemoteUserProfile] = useState<{ id: string; display_name: string | null; avatar_url: string | null } | null>(null);
   const [isRemoteMuted, setIsRemoteMuted] = useState(false);
   const [isRemoteRecording, setIsRemoteRecording] = useState(false);
 
   // Helper to get participant count
   const participantCount = participants.size;
+
+  // Type for meeting record
+  interface MeetingRecord {
+    id: string;
+    room_id: string;
+    host_id: string | null;
+    guest_id: string | null;
+    title: string | null;
+    status: 'scheduled' | 'active' | 'ended' | null;
+    started_at: string | null;
+    ended_at: string | null;
+    created_at: string;
+    updated_at: string;
+    meeting_code: string | null;
+  }
 
   // Get or create meeting
   const getOrCreateMeeting = useCallback(async () => {
@@ -104,37 +112,43 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
         return null;
       }
 
-      // Try to get existing meeting
-      const { data: existingMeeting } = await supabase
+      // Try to get existing meeting (use maybeSingle to avoid 406 error)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingMeeting, error: fetchError } = await (supabase as any)
         .from('meetings')
         .select('*')
         .eq('room_id', roomId)
-        .single();
+        .maybeSingle() as { data: MeetingRecord | null; error: { message: string } | null };
 
-      let meeting = existingMeeting;
+      if (fetchError) {
+        console.error('Error fetching meeting:', fetchError);
+      }
+
+      let meeting: MeetingRecord | null = existingMeeting;
 
       if (!meeting) {
-        // Create new meeting - using any to bypass strict type checking
-        const meetingData = {
-          room_id: roomId,
-          host_id: user.id,
-          title: `Meeting ${roomId}`,
-          status: 'scheduled',
-        };
-        const { data: newMeeting, error: createError } = await supabase
+        // Create new meeting
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: newMeeting, error: createError } = await (supabase as any)
           .from('meetings')
-          .insert(meetingData)
+          .insert({
+            room_id: roomId,
+            host_id: user.id,
+            title: `Meeting ${roomId}`,
+            status: 'scheduled',
+          })
           .select()
-          .single();
+          .single() as { data: MeetingRecord | null; error: { code?: string; message: string } | null };
 
         if (createError) {
           // Handle race condition - another user may have created the meeting
           if (createError.code === '23505') {
-            const { data: raceMeeting } = await supabase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: raceMeeting } = await (supabase as any)
               .from('meetings')
               .select('*')
               .eq('room_id', roomId)
-              .single();
+              .maybeSingle() as { data: MeetingRecord | null };
             if (raceMeeting) {
               meeting = raceMeeting;
             } else {
@@ -160,8 +174,18 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
       setMeetingId(meeting.id);
       setIsHost(meeting.host_id === user.id);
 
+      // Update meeting status to active if not already
+      if (meeting.status !== 'active') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('meetings')
+          .update({ status: 'active', started_at: new Date().toISOString() })
+          .eq('id', meeting.id);
+      }
+
       // Register as participant - check if exists first
-      const { data: existingParticipant } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingParticipant } = await (supabase as any)
         .from('meeting_participants')
         .select('id')
         .eq('meeting_id', meeting.id)
@@ -170,23 +194,24 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
 
       if (existingParticipant) {
         // Update existing participant
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
           .from('meeting_participants')
           .update({ is_active: true, left_at: null })
           .eq('id', existingParticipant.id);
       } else {
         // Insert new participant
         const role = meeting.host_id === user.id ? 'host' : 'participant';
-        const participantData = {
-          meeting_id: meeting.id,
-          user_id: user.id,
-          role,
-          is_active: true,
-          joined_at: new Date().toISOString(),
-        };
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
           .from('meeting_participants')
-          .insert(participantData);
+          .insert({
+            meeting_id: meeting.id,
+            user_id: user.id,
+            role,
+            is_active: true,
+            joined_at: new Date().toISOString(),
+          });
       }
 
       return { meeting, user };
@@ -226,18 +251,38 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
   const handleTrackSubscribed = useCallback((track: RemoteTrack, participant: RemoteParticipant) => {
     console.log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
+    // Parse identity to get user info for creating participant if doesn't exist
+    const [userId, displayName] = participant.identity.split(':');
+
     setParticipants(prev => {
       const updated = new Map(prev);
-      const existing = updated.get(participant.identity);
+      let existing = updated.get(participant.identity);
+
+      // Create participant if doesn't exist (track can arrive before participantConnected event)
+      if (!existing) {
+        existing = {
+          userId,
+          sessionId: participant.sid,
+          displayName: displayName || null,
+          avatarUrl: null,
+          isMuted: true,
+          isVideoEnabled: false,
+          isSpeaking: false,
+          isRecording: false,
+          connectionState: 'connected',
+          stream: null,
+          videoStream: null,
+        };
+        updated.set(participant.identity, existing);
+        console.log(`Created participant from track subscription: ${participant.identity}`);
+      }
 
       if (track.kind === 'audio') {
         const audioTrack = track as RemoteAudioTrack;
         const audioStream = new MediaStream([audioTrack.mediaStreamTrack]);
 
-        if (existing) {
-          existing.stream = audioStream;
-          existing.isMuted = !audioTrack.isEnabled;
-        }
+        existing.stream = audioStream;
+        existing.isMuted = !audioTrack.isEnabled;
 
         // Update backwards compat remote stream
         setRemoteStream(audioStream);
@@ -269,10 +314,8 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
         const videoTrack = track as RemoteVideoTrack;
         const videoStream = new MediaStream([videoTrack.mediaStreamTrack]);
 
-        if (existing) {
-          existing.videoStream = videoStream;
-          existing.isVideoEnabled = videoTrack.isEnabled;
-        }
+        existing.videoStream = videoStream;
+        existing.isVideoEnabled = videoTrack.isEnabled;
 
         // Update backwards compat remote video stream
         setRemoteVideoStream(videoStream);
@@ -334,13 +377,14 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
     const [userId, displayName] = participant.identity.split(':');
 
     // Try to get user profile from Supabase
-    let profile = { display_name: displayName || null, avatar_url: null as string | null };
+    let profile = { id: userId, display_name: displayName || null, avatar_url: null as string | null };
     try {
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
         .from('user_profiles')
-        .select('display_name, avatar_url')
+        .select('id, display_name, avatar_url')
         .eq('id', userId)
-        .single();
+        .single() as { data: { id: string; display_name: string | null; avatar_url: string | null } | null };
       if (data) {
         profile = data;
       }
@@ -348,23 +392,36 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
       console.log('Could not fetch profile for participant:', e);
     }
 
-    const newParticipant: Participant = {
-      userId,
-      sessionId: participant.sid,
-      displayName: profile.display_name,
-      avatarUrl: profile.avatar_url,
-      isMuted: true,
-      isVideoEnabled: false,
-      isSpeaking: false,
-      isRecording: false,
-      connectionState: 'connected',
-      stream: null,
-      videoStream: null,
-    };
-
     setParticipants(prev => {
       const updated = new Map(prev);
-      updated.set(participant.identity, newParticipant);
+      const existing = updated.get(participant.identity);
+
+      if (existing) {
+        // Update existing participant with profile data
+        existing.displayName = profile.display_name;
+        existing.avatarUrl = profile.avatar_url;
+        existing.sessionId = participant.sid;
+        existing.connectionState = 'connected';
+        console.log(`Updated existing participant with profile: ${participant.identity}`);
+      } else {
+        // Create new participant
+        const newParticipant: Participant = {
+          userId,
+          sessionId: participant.sid,
+          displayName: profile.display_name,
+          avatarUrl: profile.avatar_url,
+          isMuted: true,
+          isVideoEnabled: false,
+          isSpeaking: false,
+          isRecording: false,
+          connectionState: 'connected',
+          stream: null,
+          videoStream: null,
+        };
+        updated.set(participant.identity, newParticipant);
+        console.log(`Created new participant: ${participant.identity}`);
+      }
+
       return updated;
     });
 
@@ -389,19 +446,21 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
     setParticipants(prev => {
       const updated = new Map(prev);
       updated.delete(participant.identity);
+
+      // Clear backwards compat streams if this was the only remote
+      // We check the updated map size, not the current state
+      if (updated.size === 0) {
+        setRemoteStream(null);
+        setRemoteVideoStream(null);
+        setRemoteUserProfile(null);
+      }
+
       return updated;
     });
 
     setPeerLeft(true);
     setTimeout(() => setPeerLeft(false), 100);
-
-    // Clear backwards compat streams if this was the only remote
-    if (participants.size <= 1) {
-      setRemoteStream(null);
-      setRemoteVideoStream(null);
-      setRemoteUserProfile(null);
-    }
-  }, [participants.size]);
+  }, []);
 
   // Connect to Twilio room
   const connectToRoom = useCallback(async () => {
@@ -416,11 +475,12 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
       const { user } = result;
 
       // Get user profile for display name
-      const { data: profile } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: profile } = await (supabase as any)
         .from('user_profiles')
         .select('display_name')
         .eq('id', user.id)
-        .single();
+        .single() as { data: { display_name: string | null } | null };
 
       const displayName = profile?.display_name || user.email || 'Anonymous';
       const identity = `${user.id}:${displayName}`;
@@ -461,7 +521,7 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
 
       // Handle room disconnection
       room.on('disconnected', (_room, disconnectError) => {
-        console.log('Disconnected from room', disconnectError);
+        console.log('Disconnected from room', disconnectError?.message || 'No error');
         setIsConnected(false);
         setConnectionState('disconnected');
 
@@ -475,9 +535,26 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
           localVideoTrackRef.current = null;
         }
 
+        // Clear participants
+        setParticipants(new Map());
+        setRemoteStream(null);
+        setRemoteVideoStream(null);
+
         if (disconnectError) {
           setError(`Disconnected: ${disconnectError.message}`);
         }
+      });
+
+      // Handle reconnection events
+      room.on('reconnecting', (error) => {
+        console.log('Reconnecting to room...', error?.message);
+        setConnectionState('connecting');
+      });
+
+      room.on('reconnected', () => {
+        console.log('Reconnected to room');
+        setConnectionState('connected');
+        setError(null);
       });
 
       // Handle dominant speaker changes for speaking indicator
@@ -512,23 +589,38 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
     }
   }, []);
 
+  // Track video toggle state to prevent double operations
+  const isTogglingVideoRef = useRef(false);
+
   // Toggle video
   const toggleVideo = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
 
+    // Prevent double-toggle while operation is in progress
+    if (isTogglingVideoRef.current) {
+      console.log('Video toggle already in progress, skipping...');
+      return;
+    }
+
+    isTogglingVideoRef.current = true;
+
     const existingVideoTrack = localVideoTrackRef.current;
 
-    if (existingVideoTrack) {
-      // Disable and unpublish video
-      existingVideoTrack.stop();
-      room.localParticipant.unpublishTrack(existingVideoTrack);
-      localVideoTrackRef.current = null;
-      setLocalVideoStream(null);
-      setIsVideoEnabled(false);
-    } else {
-      // Enable video
-      try {
+    try {
+      if (existingVideoTrack) {
+        // Disable and unpublish video
+        existingVideoTrack.stop();
+        try {
+          room.localParticipant.unpublishTrack(existingVideoTrack);
+        } catch (unpublishErr) {
+          console.warn('Error unpublishing video track:', unpublishErr);
+        }
+        localVideoTrackRef.current = null;
+        setLocalVideoStream(null);
+        setIsVideoEnabled(false);
+      } else {
+        // Enable video
         const videoTrack = await createLocalVideoTrack({
           facingMode: 'user',
           width: 640,
@@ -536,15 +628,27 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
         });
 
         localVideoTrackRef.current = videoTrack;
-        room.localParticipant.publishTrack(videoTrack);
+
+        try {
+          await room.localParticipant.publishTrack(videoTrack);
+        } catch (publishErr) {
+          console.error('Error publishing video track:', publishErr);
+          // Clean up the track if publishing failed
+          videoTrack.stop();
+          localVideoTrackRef.current = null;
+          setError('Failed to publish video');
+          return;
+        }
 
         const videoStream = new MediaStream([videoTrack.mediaStreamTrack]);
         setLocalVideoStream(videoStream);
         setIsVideoEnabled(true);
-      } catch (err) {
-        console.error('Error enabling video:', err);
-        setError('Failed to enable camera');
       }
+    } catch (err) {
+      console.error('Error toggling video:', err);
+      setError('Failed to toggle camera');
+    } finally {
+      isTogglingVideoRef.current = false;
     }
   }, []);
 
@@ -585,7 +689,8 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
 
     // Update meeting status if host
     if (isHost && meetingId) {
-      await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
         .from('meetings')
         .update({ status: 'ended', ended_at: new Date().toISOString() })
         .eq('id', meetingId);
@@ -595,8 +700,17 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
     window.location.href = '/dashboard';
   }, [isHost, meetingId, supabase]);
 
-  // Connect on mount
+  // Track if already connected to prevent reconnection loops
+  const hasConnectedRef = useRef(false);
+
+  // Connect on mount - only run once
   useEffect(() => {
+    // Prevent reconnection if already connected or connecting
+    if (hasConnectedRef.current) {
+      return;
+    }
+    hasConnectedRef.current = true;
+
     connectToRoom();
 
     return () => {
@@ -611,8 +725,11 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
       if (localVideoTrackRef.current) {
         localVideoTrackRef.current.stop();
       }
+      // Reset connection flag on unmount so component can reconnect if remounted
+      hasConnectedRef.current = false;
     };
-  }, [connectToRoom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]); // Only depend on roomId, not connectToRoom
 
   // Dummy getPeerConnection for backwards compat
   const getPeerConnection = useCallback(() => null, []);

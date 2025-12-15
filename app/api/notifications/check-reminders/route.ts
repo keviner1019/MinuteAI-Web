@@ -43,7 +43,7 @@ interface Meeting {
   id: string;
   title: string;
   room_id: string;
-  scheduled_start: string;
+  scheduled_at: string;
   host_id: string;
 }
 
@@ -126,11 +126,11 @@ async function checkMeetingReminders(results: { meetingReminders: number; deadli
     // Get user's upcoming meetings
     const { data: hostedMeetings } = await supabaseAdmin
       .from('meetings')
-      .select('id, title, room_id, scheduled_start, host_id')
+      .select('id, title, room_id, scheduled_at, host_id')
       .eq('host_id', user.id)
       .eq('status', 'scheduled')
-      .gte('scheduled_start', reminderWindowStart.toISOString())
-      .lte('scheduled_start', reminderWindowEnd.toISOString());
+      .gte('scheduled_at', reminderWindowStart.toISOString())
+      .lte('scheduled_at', reminderWindowEnd.toISOString());
 
     const { data: participantLinks } = await supabaseAdmin
       .from('meeting_participants')
@@ -142,11 +142,11 @@ async function checkMeetingReminders(results: { meetingReminders: number; deadli
     const { data: participantMeetings } = participantMeetingIds.length > 0
       ? await supabaseAdmin
           .from('meetings')
-          .select('id, title, room_id, scheduled_start, host_id')
+          .select('id, title, room_id, scheduled_at, host_id')
           .in('id', participantMeetingIds)
           .eq('status', 'scheduled')
-          .gte('scheduled_start', reminderWindowStart.toISOString())
-          .lte('scheduled_start', reminderWindowEnd.toISOString())
+          .gte('scheduled_at', reminderWindowStart.toISOString())
+          .lte('scheduled_at', reminderWindowEnd.toISOString())
       : { data: [] };
 
     const allMeetings = [...(hostedMeetings || []), ...(participantMeetings || [])] as Meeting[];
@@ -170,7 +170,7 @@ async function checkMeetingReminders(results: { meetingReminders: number; deadli
       if (existingNotification) continue;
 
       // Send the reminder
-      const scheduledTime = new Date(meeting.scheduled_start);
+      const scheduledTime = new Date(meeting.scheduled_at);
       const minutesUntil = Math.round((scheduledTime.getTime() - now.getTime()) / 60000);
 
       const emailData: MeetingReminderData = {
@@ -365,10 +365,10 @@ export async function POST(request: NextRequest) {
       // Get today's meetings
       const { data: meetings } = await supabaseAdmin
         .from('meetings')
-        .select('id, title, room_id, scheduled_start')
+        .select('id, title, room_id, scheduled_at')
         .or(`host_id.eq.${user.id}`)
-        .gte('scheduled_start', today.toISOString())
-        .lt('scheduled_start', tomorrow.toISOString())
+        .gte('scheduled_at', today.toISOString())
+        .lt('scheduled_at', tomorrow.toISOString())
         .eq('status', 'scheduled');
 
       // Get tasks due today and tomorrow
@@ -410,7 +410,7 @@ export async function POST(request: NextRequest) {
           const meeting = m as Meeting;
           return {
             title: meeting.title,
-            time: new Date(meeting.scheduled_start).toLocaleTimeString('en-US', {
+            time: new Date(meeting.scheduled_at).toLocaleTimeString('en-US', {
               hour: 'numeric',
               minute: '2-digit',
             }),

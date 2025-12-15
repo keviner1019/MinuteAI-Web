@@ -67,7 +67,8 @@ interface ToastContextType {
     inviterName: string,
     meetingTitle: string,
     roomId: string,
-    avatar?: string | null
+    avatar?: string | null,
+    scheduledAt?: string | null
   ) => void;
   showMeetingStartedToast: (meetingTitle: string, roomId: string) => void;
   showMeetingEndedToast: (meetingTitle: string) => void;
@@ -391,19 +392,42 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   const showMeetingInviteToast = useCallback(
-    (inviterName: string, meetingTitle: string, roomId: string, avatar?: string | null) => {
-      showToast({
-        type: 'meeting_invite',
-        title: 'Meeting Invitation',
-        message: `${inviterName} invited you to "${meetingTitle}"`,
-        avatar,
-        duration: 8000,
-        navigateTo: `/meeting/${roomId}`,
-        action: {
-          label: 'Join',
-          onClick: () => router.push(`/meeting/${roomId}`),
-        },
-      });
+    (inviterName: string, meetingTitle: string, roomId: string, avatar?: string | null, scheduledAt?: string | null) => {
+      // For scheduled meetings, navigate to calendar; for instant meetings, navigate to meeting room
+      if (scheduledAt) {
+        const scheduledDate = new Date(scheduledAt);
+        const year = scheduledDate.getFullYear();
+        const month = scheduledDate.getMonth();
+        const day = scheduledDate.getDate();
+
+        showToast({
+          type: 'meeting_invite',
+          title: 'Meeting Scheduled',
+          message: `${inviterName} invited you to "${meetingTitle}" on ${scheduledDate.toLocaleDateString()}`,
+          avatar,
+          duration: 8000,
+          navigateTo: `/calendar?year=${year}&month=${month}&day=${day}`,
+          highlightId: `calendar-day-${day}`,
+          highlightType: 'calendar',
+          action: {
+            label: 'View Calendar',
+            onClick: () => router.push(`/calendar?year=${year}&month=${month}&day=${day}`),
+          },
+        });
+      } else {
+        showToast({
+          type: 'meeting_invite',
+          title: 'Meeting Invitation',
+          message: `${inviterName} invited you to "${meetingTitle}"`,
+          avatar,
+          duration: 8000,
+          navigateTo: `/meeting/${roomId}`,
+          action: {
+            label: 'Join',
+            onClick: () => router.push(`/meeting/${roomId}`),
+          },
+        });
+      }
     },
     [showToast, router]
   );

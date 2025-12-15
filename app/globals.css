@@ -62,6 +62,27 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+
+  /* Force light mode styles for inputs in dark mode to ensure visibility */
+  input,
+  textarea,
+  select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    caret-color: #111827 !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af !important;
+  }
+
+  /* Ensure date/time inputs have visible text */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    color-scheme: light;
+  }
 }
 
 body {
@@ -75,6 +96,13 @@ body {
 @layer base {
   * {
     @apply border-gray-200;
+  }
+
+  /* Ensure all input fields have visible cursor and text */
+  input,
+  textarea,
+  select {
+    @apply caret-gray-900 text-gray-900;
   }
 
   h1 {
@@ -122,7 +150,7 @@ body {
 
   /* Input Fields */
   .input-field {
-    @apply w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150;
+    @apply w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 caret-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150;
   }
 
   /* Status Badges */
@@ -218,4 +246,14 @@ body {
 .meeting-highlight {
   animation: highlight-blink 0.8s ease-in-out 3;
   border-color: rgb(124, 58, 237) !important;
+}
+
+/* Shimmer animation for notification badges */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }

@@ -8,7 +8,8 @@ import { useFriendRequests } from '@/hooks/useFriends';
 import Button from './Button';
 import { Avatar } from './Avatar';
 import { supabase } from '@/lib/supabase/config';
-import { AudioWaveform, LayoutDashboard, Calendar, ListTodo, Users } from 'lucide-react';
+import Logo from './Logo';
+import { LayoutDashboard, Calendar, ListTodo, Users, AudioWaveform } from 'lucide-react';
 
 export default function Header() {
   const pathname = usePathname();

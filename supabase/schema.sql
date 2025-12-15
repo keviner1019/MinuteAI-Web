@@ -153,6 +153,7 @@ CREATE TRIGGER on_auth_user_created
 CREATE TABLE IF NOT EXISTS public.meetings (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     room_id TEXT UNIQUE NOT NULL,
+    meeting_code TEXT UNIQUE, -- 6-character code for easy joining (e.g., ABC123)
     host_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     guest_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     title TEXT DEFAULT 'Quick Meeting',
@@ -218,6 +219,7 @@ CREATE TABLE IF NOT EXISTS public.meeting_invitations (
 CREATE INDEX IF NOT EXISTS meetings_host_id_idx ON public.meetings(host_id);
 CREATE INDEX IF NOT EXISTS meetings_guest_id_idx ON public.meetings(guest_id);
 CREATE INDEX IF NOT EXISTS meetings_room_id_idx ON public.meetings(room_id);
+CREATE INDEX IF NOT EXISTS meetings_meeting_code_idx ON public.meetings(meeting_code);
 CREATE INDEX IF NOT EXISTS meetings_status_idx ON public.meetings(status);
 CREATE INDEX IF NOT EXISTS transcripts_meeting_id_idx ON public.transcripts(meeting_id);
 CREATE INDEX IF NOT EXISTS meeting_invitations_token_idx ON public.meeting_invitations(token);
@@ -231,6 +233,7 @@ ALTER TABLE public.meeting_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing meeting policies if they exist
 DROP POLICY IF EXISTS "Users can view their own meetings" ON public.meetings;
+DROP POLICY IF EXISTS "Users can view accessible meetings" ON public.meetings;
 DROP POLICY IF EXISTS "Users can create meetings" ON public.meetings;
 DROP POLICY IF EXISTS "Hosts can update their meetings" ON public.meetings;
 DROP POLICY IF EXISTS "Users can view meeting transcripts" ON public.transcripts;
@@ -240,12 +243,34 @@ DROP POLICY IF EXISTS "Users can insert meeting audio" ON public.meeting_audio;
 DROP POLICY IF EXISTS "Users can view their meeting summaries" ON public.meeting_summaries;
 DROP POLICY IF EXISTS "Service role can insert summaries" ON public.meeting_summaries;
 DROP POLICY IF EXISTS "Users can view their invitations" ON public.meeting_invitations;
+DROP POLICY IF EXISTS "Users can view invitations they created or received" ON public.meeting_invitations;
 DROP POLICY IF EXISTS "Users can create invitations" ON public.meeting_invitations;
+DROP POLICY IF EXISTS "Invitees can update their invitation status" ON public.meeting_invitations;
 
 -- RLS Policies for meetings
-CREATE POLICY "Users can view their own meetings"
+-- Allows hosts, guests, participants, invited users, and authenticated users looking up by code
+CREATE POLICY "Users can view accessible meetings"
     ON public.meetings FOR SELECT
-    USING (auth.uid() = host_id OR auth.uid() = guest_id);
+    USING (
+        -- Host or guest can see their meetings
+        auth.uid() = host_id OR auth.uid() = guest_id
+        OR
+        -- Participants can see meetings they joined
+        EXISTS (
+            SELECT 1 FROM public.meeting_participants mp
+            WHERE mp.meeting_id = meetings.id AND mp.user_id = auth.uid()
+        )
+        OR
+        -- Invitees can see meetings they are invited to
+        EXISTS (
+            SELECT 1 FROM public.meeting_invitations mi
+            WHERE mi.meeting_id = meetings.id
+            AND lower(mi.invitee_email) = lower(auth.jwt() ->> 'email')
+        )
+        OR
+        -- Any authenticated user can look up active/scheduled meetings by meeting_code (for joining)
+        (auth.uid() IS NOT NULL AND meeting_code IS NOT NULL AND status IN ('active', 'scheduled'))
+    );
 
 CREATE POLICY "Users can create meetings"
     ON public.meetings FOR INSERT
@@ -313,13 +338,28 @@ CREATE POLICY "Service role can insert summaries"
     WITH CHECK (true);
 
 -- RLS Policies for meeting_invitations
-CREATE POLICY "Users can view their invitations"
+-- Allows both inviters and invitees to see invitations
+CREATE POLICY "Users can view invitations they created or received"
     ON public.meeting_invitations FOR SELECT
-    USING (auth.uid() = inviter_id);
+    USING (
+        auth.uid() = inviter_id
+        OR
+        lower(invitee_email) = lower(auth.jwt() ->> 'email')
+    );
 
 CREATE POLICY "Users can create invitations"
     ON public.meeting_invitations FOR INSERT
     WITH CHECK (auth.uid() = inviter_id);
+
+-- Invitees can update their invitation status (accept/decline)
+CREATE POLICY "Invitees can update their invitation status"
+    ON public.meeting_invitations FOR UPDATE
+    USING (
+        lower(invitee_email) = lower(auth.jwt() ->> 'email')
+    )
+    WITH CHECK (
+        lower(invitee_email) = lower(auth.jwt() ->> 'email')
+    );
 
 -- Triggers for meetings
 DROP TRIGGER IF EXISTS update_meetings_updated_at ON public.meetings;

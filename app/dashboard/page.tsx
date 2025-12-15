@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotes } from '@/hooks/useNotes';
+import { useNotes, SharedNote } from '@/hooks/useNotes';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import NoteCard from '@/components/ui/NoteCard';
 import UploadModal from '@/components/ui/UploadModal';
@@ -34,7 +34,7 @@ import { useUpload } from '@/contexts/UploadContext';
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
-  const { notes, loading, error, refreshNotes } = useNotes(user?.id || null);
+  const { notes, sharedNotes, loading, error, refreshNotes } = useNotes(user?.id || null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [createMeetingModalOpen, setCreateMeetingModalOpen] = useState(false);
   const [meetingLinkModal, setMeetingLinkModal] = useState<{ url: string; code: string; roomId: string } | null>(null);
@@ -61,14 +61,78 @@ export default function DashboardPage() {
     if (!user?.id) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch hosted meetings
+      const { data: hostedMeetings, error: hostedError } = await supabase
         .from('meetings')
         .select('*')
         .eq('host_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setMeetings(data || []);
+      if (hostedError) throw hostedError;
+
+      type MeetingRow = { id: string; [key: string]: any };
+      let allMeetings: MeetingRow[] = [...(hostedMeetings as MeetingRow[] || [])];
+
+      // Fetch meetings where user is a participant (but not host)
+      const { data: participantData } = await supabase
+        .from('meeting_participants')
+        .select('meeting_id')
+        .eq('user_id', user.id);
+
+      if (participantData && participantData.length > 0) {
+        const participantMeetingIds = participantData.map((p: { meeting_id: string }) => p.meeting_id);
+        const hostedIds = new Set(allMeetings.map(m => m.id));
+        const newMeetingIds = participantMeetingIds.filter((id: string) => !hostedIds.has(id));
+
+        if (newMeetingIds.length > 0) {
+          const { data: participantMeetings } = await supabase
+            .from('meetings')
+            .select('*')
+            .in('id', newMeetingIds)
+            .order('created_at', { ascending: false });
+
+          if (participantMeetings) {
+            allMeetings = [...allMeetings, ...(participantMeetings as MeetingRow[]).map(m => ({ ...m, isParticipant: true }))];
+          }
+        }
+      }
+
+      // Fetch meetings where user is invited (via email)
+      if (user.email) {
+        const { data: invitations } = await supabase
+          .from('meeting_invitations')
+          .select('meeting_id')
+          .eq('invitee_email', user.email.toLowerCase())
+          .eq('status', 'pending');
+
+        if (invitations && invitations.length > 0) {
+          const existingIds = new Set(allMeetings.map(m => m.id));
+          const invitedMeetingIds = invitations
+            .map((inv: { meeting_id: string }) => inv.meeting_id)
+            .filter((id: string) => !existingIds.has(id));
+
+          if (invitedMeetingIds.length > 0) {
+            const { data: invitedMeetings } = await supabase
+              .from('meetings')
+              .select('*')
+              .in('id', invitedMeetingIds)
+              .order('created_at', { ascending: false });
+
+            if (invitedMeetings) {
+              allMeetings = [...allMeetings, ...(invitedMeetings as MeetingRow[]).map(m => ({ ...m, isInvited: true }))];
+            }
+          }
+        }
+      }
+
+      // Sort all meetings by scheduled_at or created_at descending
+      allMeetings.sort((a, b) => {
+        const dateA = new Date(a.scheduled_at || a.created_at).getTime();
+        const dateB = new Date(b.scheduled_at || b.created_at).getTime();
+        return dateB - dateA;
+      });
+
+      setMeetings(allMeetings);
     } catch (error) {
       console.error('Failed to load meetings:', error);
     } finally {
@@ -108,8 +172,14 @@ export default function DashboardPage() {
     }
   };
 
-  // Filter and search notes
-  const filteredNotes = notes
+  // Combine owned notes and shared notes with markers
+  const allNotesWithMarkers = [
+    ...notes.map(note => ({ ...note, isSharedWithMe: false as const })),
+    ...sharedNotes.map(note => ({ ...note, isSharedWithMe: true as const })),
+  ];
+
+  // Filter and search notes (including shared notes)
+  const filteredNotes = allNotesWithMarkers
     .filter((note) => {
       const matchesSearch =
         searchQuery === '' ||
@@ -140,11 +210,12 @@ export default function DashboardPage() {
       }
     });
 
+  const totalNotes = notes.length + sharedNotes.length;
   const stats = {
-    total: notes.length,
-    completed: notes.filter(n => n.transcript).length,
-    pending: notes.filter(n => !n.transcript).length,
-    todosCount: notes.reduce((acc, note) => acc + (note.actionItems?.length || 0), 0),
+    total: totalNotes,
+    completed: [...notes, ...sharedNotes].filter(n => n.transcript).length,
+    pending: [...notes, ...sharedNotes].filter(n => !n.transcript).length,
+    todosCount: [...notes, ...sharedNotes].reduce((acc, note) => acc + (note.actionItems?.length || 0), 0),
   };
 
   return (
@@ -256,7 +327,7 @@ export default function DashboardPage() {
               >
                 <FileAudio className="h-4 w-4" />
                 Notes
-                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">{notes.length}</span>
+                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">{totalNotes}</span>
               </button>
               <button
                 onClick={() => setActiveTab('meetings')}
@@ -277,7 +348,7 @@ export default function DashboardPage() {
           {activeTab === 'notes' && (
             <>
               {/* Modern Search and Filter */}
-              {!loading && notes.length > 0 && (
+              {!loading && totalNotes > 0 && (
                 <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300">
                   <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                     <div className="space-y-4">
@@ -331,7 +402,7 @@ export default function DashboardPage() {
                         </select>
 
                         <div className="ml-auto text-sm font-bold text-gray-900">
-                          {filteredNotes.length} of {notes.length}
+                          {filteredNotes.length} of {totalNotes}
                         </div>
                       </div>
                     </div>
@@ -360,7 +431,7 @@ export default function DashboardPage() {
               )}
 
               {/* Empty State */}
-              {!loading && !error && notes.length === 0 && (
+              {!loading && !error && totalNotes === 0 && (
                 <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300 animate-in fade-in zoom-in duration-500">
                   <div className="inline-block p-6 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full mb-6">
                     <FileAudio className="h-16 w-16 text-purple-600 animate-pulse" />
@@ -379,7 +450,7 @@ export default function DashboardPage() {
               )}
 
               {/* No Results */}
-              {!loading && !error && notes.length > 0 && filteredNotes.length === 0 && (
+              {!loading && !error && totalNotes > 0 && filteredNotes.length === 0 && (
                 <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300">
                   <div className="max-w-md mx-auto px-6">
                     <p className="text-gray-600 mb-6">No notes match your search</p>

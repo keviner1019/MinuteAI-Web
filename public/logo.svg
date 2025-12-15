@@ -1,30 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" width="200" height="50">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
   <defs>
     <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
     </linearGradient>
   </defs>
 
-  <!-- Icon: Stylized "M" with sound waves representing minutes/meetings -->
-  <g transform="translate(5, 5)">
-    <!-- Rounded square background -->
-    <rect x="0" y="0" width="40" height="40" rx="8" fill="url(#logoGradient)"/>
+  <!-- Icon Container -->
+  <rect x="4" y="8" width="32" height="32" rx="8" fill="url(#logoGradient)"/>
 
-    <!-- Letter M stylized as audio waveform -->
-    <path d="M8 28 L8 12 L14 22 L20 12 L26 22 L32 12 L32 28"
-          stroke="white"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          fill="none"/>
+  <!-- Audio Waveform Bars -->
+  <rect x="10" y="18" width="3" height="12" rx="1.5" fill="white"/>
+  <rect x="15" y="14" width="3" height="20" rx="1.5" fill="white"/>
+  <rect x="20" y="16" width="3" height="16" rx="1.5" fill="white"/>
+  <rect x="25" y="12" width="3" height="24" rx="1.5" fill="white"/>
+  <rect x="30" y="20" width="3" height="8" rx="1.5" fill="white"/>
 
-    <!-- Small AI dot indicator -->
-    <circle cx="32" cy="8" r="4" fill="#22d3ee"/>
-  </g>
-
-  <!-- Text: MinuteAI -->
-  <text x="55" y="33" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="700">
-    <tspan fill="#1f2937">Minute</tspan><tspan fill="url(#logoGradient)">AI</tspan>
+  <!-- Wordmark -->
+  <text x="44" y="33" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="700" fill="#111827">
+    <tspan>Minute</tspan><tspan fill="url(#logoGradient)">AI</tspan>
   </text>
 </svg>

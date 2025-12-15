@@ -8,7 +8,6 @@ import { Controls } from '@/components/meeting/Controls';
 import { RecordingCountdown } from '@/components/meeting/RecordingCountdown';
 import { VideoGrid } from '@/components/meeting/VideoGrid';
 import { ParticipantCount } from '@/components/meeting/ParticipantCount';
-import Header from '@/components/ui/Header';
 import { useTwilioVideo } from '@/hooks/useTwilioVideo';
 import { useTranscription } from '@/hooks/useTranscription';
 import { useCompositeRecorder } from '@/hooks/useCompositeRecorder';
@@ -308,15 +307,57 @@ export default function MeetingRoom() {
     };
   }, [isRecording, isSavingRecording, stopRecording]);
 
+  // Track which users have been shown the "joined" notification (by their user ID + session)
+  // We use a Map to track both the user ID and their session ID to handle reconnections properly
+  const shownJoinedNotifications = useRef<Map<string, string>>(new Map());
+  const isInitialConnectionRef = useRef(true);
+
   // Show notification when participant joins with their name
+  // Only show for new participants joining AFTER we connected (not for participants already in the room)
+  // Only the host sees join notifications - non-hosts don't see "joined" notifications
   useEffect(() => {
-    if (isConnected && remoteUserProfile && !participantJoinedName) {
-      const userName = remoteUserProfile.display_name || 'Participant';
-      setParticipantJoinedName(userName);
-      // Hide notification after 3 seconds
-      setTimeout(() => setParticipantJoinedName(null), 3000);
+    if (!isConnected || !remoteUserProfile?.id) return;
+
+    // Don't show "joined" notifications if we're not the host
+    // (when you join someone else's room, you don't need to see "X joined the meeting")
+    if (!isHost) {
+      isInitialConnectionRef.current = false;
+      return;
     }
-  }, [isConnected, remoteUserProfile, participantJoinedName]);
+
+    // Get the current participant from the participants map
+    const currentParticipant = Array.from(participants.values()).find(
+      p => p.userId === remoteUserProfile.id
+    );
+
+    if (!currentParticipant) return;
+
+    const previousSessionId = shownJoinedNotifications.current.get(remoteUserProfile.id);
+    const currentSessionId = currentParticipant.sessionId;
+
+    // Only show notification if:
+    // 1. This is a completely new user (not in our map), OR
+    // 2. This is the same user with a DIFFERENT session (they left and rejoined, not just reconnected)
+    // Don't show notification for reconnections (same session ID)
+    if (previousSessionId === undefined || (previousSessionId !== currentSessionId && !isInitialConnectionRef.current)) {
+      // For reconnections with same session, Twilio handles it internally and doesn't create new participant
+      // If the session ID changed, it means the user left and rejoined (new session)
+      shownJoinedNotifications.current.set(remoteUserProfile.id, currentSessionId);
+
+      // Skip the very first connection notification if we want (optional)
+      if (isInitialConnectionRef.current) {
+        isInitialConnectionRef.current = false;
+        const userName = remoteUserProfile.display_name || 'Participant';
+        setParticipantJoinedName(userName);
+        setTimeout(() => setParticipantJoinedName(null), 3000);
+      } else if (previousSessionId !== currentSessionId) {
+        // User rejoined with new session
+        const userName = remoteUserProfile.display_name || 'Participant';
+        setParticipantJoinedName(userName);
+        setTimeout(() => setParticipantJoinedName(null), 3000);
+      }
+    }
+  }, [isConnected, remoteUserProfile, participants, isHost]);
 
   // Show notification when participant leaves with their name
   useEffect(() => {
@@ -350,29 +391,50 @@ export default function MeetingRoom() {
   }, [participants]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      {/* Header */}
-      <Header />
-
+    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
       {/* Participant Counter */}
       <ParticipantCount count={participantCount} />
 
       {/* Participant Joined Notification */}
       {participantJoinedName && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top">
-          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2">
-            <span className="text-xl">👋</span>
-            <span className="font-medium">{participantJoinedName} joined the meeting!</span>
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
+          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-3.5 rounded-2xl shadow-2xl shadow-emerald-500/25 flex items-center gap-3 border border-emerald-400/30">
+            {/* Animated background shimmer */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+
+            {/* Pulse ring effect */}
+            <div className="relative">
+              <span className="absolute inset-0 rounded-full bg-white/30 animate-ping" style={{ animationDuration: '1.5s' }} />
+              <div className="relative w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="font-semibold text-base leading-tight">{participantJoinedName}</span>
+              <span className="text-emerald-100 text-sm">joined the meeting</span>
+            </div>
           </div>
         </div>
       )}
 
       {/* Participant Left Notification */}
       {participantLeftName && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top">
-          <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-2">
-            <span className="text-xl">👋</span>
-            <span className="font-medium">{participantLeftName} left the meeting</span>
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
+          <div className="relative overflow-hidden bg-gradient-to-r from-slate-600 to-slate-700 text-white px-6 py-3.5 rounded-2xl shadow-2xl shadow-slate-500/25 flex items-center gap-3 border border-slate-500/30">
+            {/* Icon */}
+            <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="font-semibold text-base leading-tight">{participantLeftName}</span>
+              <span className="text-slate-300 text-sm">left the meeting</span>
+            </div>
           </div>
         </div>
       )}
@@ -432,13 +494,6 @@ export default function MeetingRoom() {
         </div>
       )}
 
-      {/* Connection state info */}
-      {connectionState === 'connecting' && (
-        <div className="bg-blue-50 border-b border-blue-200 text-blue-800 px-4 py-3 text-sm flex items-center gap-2 flex-shrink-0">
-          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <span>Establishing peer-to-peer connection...</span>
-        </div>
-      )}
 
       {connectionState === 'failed' && (
         <div className="bg-red-50 border-b border-red-200 text-red-800 px-4 py-3 text-sm flex items-center justify-between flex-shrink-0">

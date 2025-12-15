@@ -57,6 +57,7 @@ export function Controls({
   roomId,
 }: ControlsProps) {
   const [meetingCode, setMeetingCode] = useState<string | null>(null);
+  const [meetingId, setMeetingId] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const supabase = createClient();
 
@@ -87,7 +88,7 @@ export function Controls({
     try {
       const { data: meeting, error } = await supabase
         .from('meetings')
-        .select('meeting_code')
+        .select('id, meeting_code')
         .eq('room_id', roomId)
         .maybeSingle(); // Use maybeSingle to avoid error when no rows
 
@@ -95,6 +96,7 @@ export function Controls({
 
       if (meeting) {
         setMeetingCode((meeting as any)?.meeting_code || null);
+        setMeetingId((meeting as any)?.id || null);
       } else {
         // Meeting not created yet, retry in 1 second
         setTimeout(fetchMeetingCode, 1000);
@@ -126,6 +128,7 @@ export function Controls({
           onClose={() => setShowInviteModal(false)}
           roomId={roomId}
           meetingCode={meetingCode}
+          meetingId={meetingId || undefined}
         />
       )}
 

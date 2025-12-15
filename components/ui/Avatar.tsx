@@ -47,8 +47,8 @@ export function Avatar({
           sizeClasses[size]
         } rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center transition-all duration-300 ${
           isSpeaking
-            ? 'ring-4 ring-green-400 ring-offset-2 ring-offset-white scale-105'
-            : 'ring-2 ring-gray-200'
+            ? 'ring-4 ring-green-400 scale-105'
+            : ''
         }`}
       >
         {src ? (
