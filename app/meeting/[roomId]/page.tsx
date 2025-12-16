@@ -280,7 +280,7 @@ export default function MeetingRoom() {
     }
   };
 
-  const handleEndCall = useCallback(async () => {
+  const handleEndCall = useCallback(async (action?: 'leave' | 'end-for-all') => {
     try {
       if (isRecording || isSavingRecording) {
         showRecordingToast(
@@ -295,7 +295,7 @@ export default function MeetingRoom() {
     } catch (error) {
       console.error('Failed to finalize recording before ending meeting:', error);
     } finally {
-      await endCall();
+      await endCall(action);
     }
   }, [endCall, isRecording, isSavingRecording, showRecordingToast, stopRecording]);
 
@@ -560,6 +560,7 @@ export default function MeetingRoom() {
           isSavingRecording={isSavingRecording}
           canRecord={canRecord}
           isHost={isHost}
+          participantCount={participantCount}
           isVideoEnabled={isVideoEnabled}
           isRemoteRecording={isRemoteRecording}
           onToggleAudio={toggleAudio}

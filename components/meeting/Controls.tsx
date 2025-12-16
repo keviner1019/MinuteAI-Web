@@ -4,6 +4,7 @@ import {
   Mic,
   MicOff,
   PhoneOff,
+  LogOut,
   FileText,
   UserPlus,
   Radio,
@@ -28,12 +29,13 @@ interface ControlsProps {
   isRemoteRecording?: boolean;
   canRecord?: boolean;
   isHost?: boolean;
+  participantCount?: number;
   onToggleAudio: () => void;
   onToggleTranscription: () => void;
   onToggleRecording: () => void;
   onToggleVideo?: () => void;
   onToggleScreenShare?: () => void;
-  onEndCall: () => void;
+  onEndCall: (action?: 'leave' | 'end-for-all') => void;
   roomId?: string;
 }
 
@@ -48,6 +50,7 @@ export function Controls({
   isRemoteRecording,
   canRecord = true,
   isHost = false,
+  participantCount = 1,
   onToggleAudio,
   onToggleTranscription,
   onToggleRecording,
@@ -59,19 +62,45 @@ export function Controls({
   const [meetingCode, setMeetingCode] = useState<string | null>(null);
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showEndOptions, setShowEndOptions] = useState(false);
   const supabase = createClient();
 
-  const handleEndCall = () => {
-    if (isHost) {
+  // Host: End meeting for all participants
+  const handleEndForAll = () => {
+    const confirmed = window.confirm(
+      'End meeting for ALL participants? Everyone will be disconnected.'
+    );
+    if (confirmed) {
+      setShowEndOptions(false);
+      onEndCall('end-for-all');
+    }
+  };
+
+  // Host: Leave but transfer ownership to another participant
+  const handleLeaveAndTransfer = () => {
+    if (participantCount <= 1) {
+      // No other participants, just end the meeting
       const confirmed = window.confirm(
-        'Are you sure you want to end this meeting? This will end the meeting for all participants.'
+        'You are the only participant. Leaving will end the meeting. Continue?'
       );
       if (confirmed) {
-        onEndCall();
+        setShowEndOptions(false);
+        onEndCall('end-for-all');
       }
     } else {
-      onEndCall();
+      const confirmed = window.confirm(
+        'Leave the meeting? Another participant will become the host.'
+      );
+      if (confirmed) {
+        setShowEndOptions(false);
+        onEndCall('leave');
+      }
     }
+  };
+
+  // Participant: Just leave
+  const handleParticipantLeave = () => {
+    onEndCall('leave');
   };
 
   // Fetch meeting code when component mounts
@@ -230,14 +259,54 @@ export function Controls({
           <FileText size={24} className="text-white" />
         </button>
 
-        {/* End Call */}
-        <button
-          onClick={handleEndCall}
-          className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition shadow-md"
-          title={isHost ? 'End meeting for all' : 'Leave meeting'}
-        >
-          <PhoneOff size={24} className="text-white" />
-        </button>
+        {/* End Call - Different behavior for host vs participant */}
+        {isHost ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowEndOptions(!showEndOptions)}
+              className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition shadow-md"
+              title="End or leave meeting"
+            >
+              <PhoneOff size={24} className="text-white" />
+            </button>
+
+            {/* Host End Options Dropdown */}
+            {showEndOptions && (
+              <div className="absolute bottom-full mb-2 right-0 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden min-w-[200px] z-50">
+                <button
+                  onClick={handleEndForAll}
+                  className="w-full px-4 py-3 text-left hover:bg-red-50 flex items-center gap-3 text-red-600 border-b border-gray-100"
+                >
+                  <PhoneOff size={18} />
+                  <div>
+                    <div className="font-medium">End for All</div>
+                    <div className="text-xs text-gray-500">End meeting for everyone</div>
+                  </div>
+                </button>
+                <button
+                  onClick={handleLeaveAndTransfer}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 text-gray-700"
+                >
+                  <LogOut size={18} />
+                  <div>
+                    <div className="font-medium">Leave Meeting</div>
+                    <div className="text-xs text-gray-500">
+                      {participantCount > 1 ? 'Transfer host & leave' : 'End meeting'}
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={handleParticipantLeave}
+            className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition shadow-md"
+            title="Leave meeting"
+          >
+            <LogOut size={24} className="text-white" />
+          </button>
+        )}
       </div>
 
       {/* Right: Status */}

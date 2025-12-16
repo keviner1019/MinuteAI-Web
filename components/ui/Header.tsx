@@ -9,7 +9,7 @@ import Button from './Button';
 import { Avatar } from './Avatar';
 import { supabase } from '@/lib/supabase/config';
 import Logo from './Logo';
-import { LayoutDashboard, Calendar, ListTodo, Users, AudioWaveform } from 'lucide-react';
+import { LayoutDashboard, Calendar, ListTodo, Users } from 'lucide-react';
 
 export default function Header() {
   const pathname = usePathname();
@@ -68,12 +68,7 @@ export default function Header() {
       <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="p-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg">
-              <AudioWaveform className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">Minute AI</span>
-          </Link>
+          <Logo size="sm" />
 
           {/* Center Navigation */}
           <nav className="hidden md:flex items-center space-x-1">

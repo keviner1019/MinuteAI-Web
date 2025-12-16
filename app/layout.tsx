@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   description:
     'Upload audio files and get AI-generated summaries, action items, key topics, and full transcripts',
   icons: {
-    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
-    apple: '/apple-touch-icon.svg',
+    icon: [{ url: '/favicon.svg?v=2', type: 'image/svg+xml' }],
+    apple: '/apple-touch-icon.svg?v=2',
   },
 };
 

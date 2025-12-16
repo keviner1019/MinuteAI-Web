@@ -41,7 +41,7 @@ export function useMeetingNotifications() {
     try {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('id, display_name, avatar_url, email')
         .eq('id', userId)
         .single();
@@ -222,7 +222,7 @@ export function useParticipantNotifications(roomId: string | null) {
     try {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('id, display_name, avatar_url, email')
         .eq('id', userId)
         .single();

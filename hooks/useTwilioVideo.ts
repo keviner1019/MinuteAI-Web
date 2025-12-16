@@ -46,7 +46,7 @@ interface UseTwilioVideoReturn {
   toggleAudio: () => void;
   toggleVideo: () => Promise<void>;
   sendRecordingState: (isRecording: boolean) => void;
-  endCall: () => Promise<void>;
+  endCall: (action?: 'leave' | 'end-for-all') => Promise<void>;
   getPeerConnection: () => RTCPeerConnection | null;
   peerLeft: boolean;
 }
@@ -59,6 +59,7 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
   const roomRef = useRef<Room | null>(null);
   const localAudioTrackRef = useRef<LocalAudioTrack | null>(null);
   const localVideoTrackRef = useRef<LocalVideoTrack | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
 
   // Local state
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -173,6 +174,7 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
 
       setMeetingId(meeting.id);
       setIsHost(meeting.host_id === user.id);
+      currentUserIdRef.current = user.id;
 
       // Update meeting status to active if not already
       if (meeting.status !== 'active') {
@@ -658,12 +660,15 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
     console.log('Recording state:', recording);
   }, []);
 
-  // End call
-  const endCall = useCallback(async () => {
+  // End call with different actions for host
+  const endCall = useCallback(async (action?: 'leave' | 'end-for-all') => {
     const room = roomRef.current;
+    const effectiveAction = action || (isHost ? 'end-for-all' : 'leave');
 
+    console.log(`👋 ${isHost ? 'Host' : 'Participant'} ending call with action: ${effectiveAction}`);
+
+    // Disconnect from Twilio room
     if (room) {
-      // Disconnect from room
       room.disconnect();
       roomRef.current = null;
     }
@@ -687,21 +692,200 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
     setRemoteStream(null);
     setRemoteVideoStream(null);
 
-    // Update meeting status if host
-    if (isHost && meetingId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any)
-        .from('meetings')
-        .update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('id', meetingId);
-    }
+    if (isHost && effectiveAction === 'end-for-all') {
+      // Host is ending meeting for everyone
+      console.log('🔴 Host ending meeting for all participants');
 
-    // Navigate back to dashboard
-    window.location.href = '/dashboard';
-  }, [isHost, meetingId, supabase]);
+      if (meetingId) {
+        // IMPORTANT: Update meeting status FIRST, before marking participants inactive
+        // This ensures participants can still receive the Realtime update via RLS policy
+        // (The RLS policy only allows SELECT if is_active = true)
+
+        // Mark meeting as ended - this triggers Realtime notification to all participants
+        console.log('📤 Updating meeting status to ended...');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('meetings')
+          .update({
+            status: 'ended',
+            ended_at: new Date().toISOString()
+          })
+          .eq('id', meetingId);
+
+        // Small delay to ensure Realtime has time to propagate
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Mark all participants as inactive (after the update is sent)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('meeting_participants')
+          .update({
+            is_active: false,
+            left_at: new Date().toISOString()
+          })
+          .eq('meeting_id', meetingId);
+      }
+
+      // Navigate to summary page
+      window.location.href = `/meeting/${roomId}/summary`;
+
+    } else if (isHost && effectiveAction === 'leave') {
+      // Host is leaving but transferring ownership
+      console.log('🔄 Host leaving and transferring ownership');
+
+      if (meetingId) {
+        // Find the next participant to become host (oldest join time)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: nextHost } = await (supabase as any)
+          .from('meeting_participants')
+          .select('user_id')
+          .eq('meeting_id', meetingId)
+          .eq('is_active', true)
+          .neq('user_id', currentUserIdRef.current)
+          .order('joined_at', { ascending: true })
+          .limit(1)
+          .single() as { data: { user_id: string } | null };
+
+        if (nextHost) {
+          // Transfer host to next participant
+          console.log(`✅ Transferring host to: ${nextHost.user_id}`);
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from('meetings')
+            .update({ host_id: nextHost.user_id })
+            .eq('id', meetingId);
+
+          // Update participant roles
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from('meeting_participants')
+            .update({ role: 'host' })
+            .eq('meeting_id', meetingId)
+            .eq('user_id', nextHost.user_id);
+        } else {
+          // No other participants, end the meeting
+          console.log('⚠️ No other participants, ending meeting');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from('meetings')
+            .update({
+              status: 'ended',
+              ended_at: new Date().toISOString()
+            })
+            .eq('id', meetingId);
+        }
+
+        // Mark self as left
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('meeting_participants')
+          .update({
+            is_active: false,
+            left_at: new Date().toISOString(),
+            role: 'participant'
+          })
+          .eq('meeting_id', meetingId)
+          .eq('user_id', currentUserIdRef.current);
+      }
+
+      // Navigate back to dashboard
+      window.location.href = '/dashboard';
+
+    } else {
+      // Participant is leaving
+      console.log('👋 Participant leaving meeting');
+
+      if (meetingId && currentUserIdRef.current) {
+        // Mark self as left
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('meeting_participants')
+          .update({
+            is_active: false,
+            left_at: new Date().toISOString()
+          })
+          .eq('meeting_id', meetingId)
+          .eq('user_id', currentUserIdRef.current);
+      }
+
+      // Navigate back to dashboard
+      window.location.href = '/dashboard';
+    }
+  }, [isHost, meetingId, roomId, supabase]);
 
   // Track if already connected to prevent reconnection loops
   const hasConnectedRef = useRef(false);
+
+  // Subscribe to meeting status changes (for detecting when host ends meeting)
+  useEffect(() => {
+    if (!meetingId) return;
+
+    console.log('🔔 Setting up meeting status subscription for meetingId:', meetingId);
+
+    // Subscribe to meeting changes via Supabase Realtime
+    const channel = supabase
+      .channel(`meeting-status-${meetingId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'meetings',
+          filter: `id=eq.${meetingId}`
+        },
+        (payload) => {
+          console.log('📥 Received meeting update:', payload.new);
+          const newStatus = payload.new as { status: string; host_id: string };
+
+          // If meeting was ended, redirect ALL participants (including host who ended it)
+          // The host will already be navigating via endCall, but this ensures everyone gets redirected
+          if (newStatus.status === 'ended') {
+            console.log('📢 Meeting ended, current user is host:', currentUserIdRef.current === newStatus.host_id);
+
+            // Only redirect non-hosts (host already redirects in endCall)
+            if (currentUserIdRef.current !== newStatus.host_id) {
+              console.log('📢 Redirecting participant to summary...');
+
+              // Cleanup
+              const room = roomRef.current;
+              if (room) {
+                room.disconnect();
+                roomRef.current = null;
+              }
+              if (localAudioTrackRef.current) {
+                localAudioTrackRef.current.stop();
+                localAudioTrackRef.current = null;
+              }
+              if (localVideoTrackRef.current) {
+                localVideoTrackRef.current.stop();
+                localVideoTrackRef.current = null;
+              }
+
+              setIsConnected(false);
+              setConnectionState('closed');
+
+              // Navigate to summary
+              window.location.href = `/meeting/${roomId}/summary`;
+            }
+          }
+
+          // If host changed and it's now us, update isHost state
+          if (newStatus.host_id === currentUserIdRef.current && !isHost) {
+            console.log('👑 You are now the host!');
+            setIsHost(true);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔔 Meeting status subscription status:', status);
+      });
+
+    return () => {
+      console.log('🔔 Cleaning up meeting status subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [meetingId, isHost, roomId, supabase]);
 
   // Connect on mount - only run once
   useEffect(() => {
