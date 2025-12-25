@@ -17,8 +17,9 @@ import {
   Share2,
   Users,
 } from 'lucide-react';
-import { getNote, deleteNote, updateActionItems } from '@/lib/supabase/database';
+import { getNote, deleteNote } from '@/lib/supabase/database';
 import { Note, ActionItem, TranscriptSegment } from '@/types';
+import { ActionItemChange } from '@/hooks/useActionItems';
 import TranscriptViewer from '@/components/meeting/TranscriptViewer';
 import ActionItemsList from '@/components/meeting/ActionItemsList';
 import ShareNoteModal from '@/components/notes/ShareNoteModal';
@@ -71,10 +72,27 @@ export default function NotePage() {
     }
   };
 
-  // Handle action items update
-  const handleUpdateActionItems = async (items: ActionItem[]) => {
+  // Handle action items update - calls API for real-time notifications
+  const handleUpdateActionItems = async (items: ActionItem[], change?: ActionItemChange) => {
     try {
-      await updateActionItems(noteId, items);
+      // Call the API to update action items with real-time notifications
+      const response = await fetch(`/api/notes/${noteId}/action-items`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          actionItems: items,
+          changeType: change?.type,
+          changedItem: change?.item,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update action items');
+      }
+
       // Update local state
       setNote((prev) => (prev ? { ...prev, actionItems: items } : null));
     } catch (error) {

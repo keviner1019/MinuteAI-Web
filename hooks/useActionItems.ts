@@ -1,10 +1,17 @@
 import { useState, useCallback } from 'react';
 import { ActionItem } from '@/types';
 
+export type ActionItemChangeType = 'added' | 'completed' | 'updated' | 'deleted';
+
+export interface ActionItemChange {
+  type: ActionItemChangeType;
+  item: ActionItem;
+}
+
 interface UseActionItemsProps {
   initialItems: ActionItem[];
   noteId: string;
-  onUpdate?: (items: ActionItem[]) => Promise<void>;
+  onUpdate?: (items: ActionItem[], change?: ActionItemChange) => Promise<void>;
 }
 
 interface UseActionItemsReturn {
@@ -55,7 +62,7 @@ export function useActionItems({
 
       if (onUpdate) {
         try {
-          await onUpdate(updatedItems);
+          await onUpdate(updatedItems, { type: 'added', item: newItem });
         } catch (error) {
           // Rollback on error
           setItems(items);
@@ -68,16 +75,20 @@ export function useActionItems({
 
   // Update action item
   const updateItem = useCallback(
-    async (id: string, updates: Partial<ActionItem>) => {
+    async (id: string, updates: Partial<ActionItem>, changeType: 'completed' | 'updated' = 'updated') => {
+      const updatedItem = items.find((item) => item.id === id);
+      if (!updatedItem) return;
+
+      const newItem = { ...updatedItem, ...updates, updatedAt: new Date().toISOString() };
       const updatedItems = items.map((item) =>
-        item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item
+        item.id === id ? newItem : item
       );
 
       setItems(updatedItems);
 
       if (onUpdate) {
         try {
-          await onUpdate(updatedItems);
+          await onUpdate(updatedItems, { type: changeType, item: newItem });
         } catch (error) {
           // Rollback on error
           setItems(items);
@@ -91,12 +102,15 @@ export function useActionItems({
   // Delete action item
   const deleteItem = useCallback(
     async (id: string) => {
+      const deletedItem = items.find((item) => item.id === id);
+      if (!deletedItem) return;
+
       const updatedItems = items.filter((item) => item.id !== id);
       setItems(updatedItems);
 
       if (onUpdate) {
         try {
-          await onUpdate(updatedItems);
+          await onUpdate(updatedItems, { type: 'deleted', item: deletedItem });
         } catch (error) {
           // Rollback on error
           setItems(items);
@@ -113,7 +127,8 @@ export function useActionItems({
       const item = items.find((i) => i.id === id);
       if (!item) return;
 
-      await updateItem(id, { completed: !item.completed });
+      // Use 'completed' change type when toggling completion
+      await updateItem(id, { completed: !item.completed }, 'completed');
     },
     [items, updateItem]
   );

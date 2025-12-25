@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ActionItem } from '@/types';
-import { useActionItems } from '@/hooks/useActionItems';
+import { useActionItems, ActionItemChange } from '@/hooks/useActionItems';
 import ActionItemCard from './ActionItemCard';
 import Button from '@/components/ui/Button';
 import { Plus, ListTodo, Filter, Loader2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Plus, ListTodo, Filter, Loader2 } from 'lucide-react';
 interface ActionItemsListProps {
   initialItems: ActionItem[];
   noteId: string;
-  onUpdate: (items: ActionItem[]) => Promise<void>;
+  onUpdate: (items: ActionItem[], change?: ActionItemChange) => Promise<void>;
 }
 
 export default function ActionItemsList({ initialItems, noteId, onUpdate }: ActionItemsListProps) {

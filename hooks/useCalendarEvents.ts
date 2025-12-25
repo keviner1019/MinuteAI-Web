@@ -251,22 +251,40 @@ export function useCalendarEvents(
 
         if (fetchError) throw fetchError;
 
-        // Toggle the action item
+        // Find the item being toggled
         const noteData = note as { action_items: any[] } | null;
+        const itemToToggle = (noteData?.action_items || []).find((item: any) => item.id === actionItemId);
+        if (!itemToToggle) {
+          console.error('Action item not found:', actionItemId);
+          return;
+        }
+
+        // Toggle the action item
+        const toggledItem = { ...itemToToggle, completed: !itemToToggle.completed };
         const actionItems = (noteData?.action_items || []).map((item: any) => {
           if (item.id === actionItemId) {
-            return { ...item, completed: !item.completed };
+            return toggledItem;
           }
           return item;
         });
 
-        // Update the note
-        const { error: updateError } = await supabase
-          .from('notes')
-          .update({ action_items: actionItems } as any)
-          .eq('id', noteId);
+        // Update via API to trigger real-time notifications
+        const response = await fetch(`/api/notes/${noteId}/action-items`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            actionItems,
+            changeType: 'completed',
+            changedItem: toggledItem,
+          }),
+        });
 
-        if (updateError) throw updateError;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to toggle action item');
+        }
 
         // Refetch events
         await fetchEvents();

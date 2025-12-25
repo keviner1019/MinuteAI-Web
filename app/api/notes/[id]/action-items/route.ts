@@ -120,6 +120,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           ? 'action-item-completed'
           : changeType === 'deleted'
           ? 'action-item-deleted'
+          : changeType === 'added'
+          ? 'action-item-updated' // Treat added as updated for notifications
           : 'action-item-updated';
 
       // Send notification to each collaborator except the one who made the change
