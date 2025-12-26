@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Video, Clock, Calendar, Users, ArrowRight } from 'lucide-react';
+import { Video, Clock, Calendar, Users, ArrowRight } from 'lucide-react';
 
 interface UpcomingMeeting {
   id: string;
@@ -141,13 +141,6 @@ export default function MeetingCountdownModal({
               ? 'bg-gradient-to-r from-amber-500 to-orange-500'
               : 'bg-gradient-to-r from-blue-500 to-indigo-600'
         }`}>
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-          >
-            <X className="w-4 h-4 text-white" />
-          </button>
-
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-xl">
               {hasStarted ? (

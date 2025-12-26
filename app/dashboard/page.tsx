@@ -13,19 +13,22 @@ import { UploadProvider } from '@/contexts/UploadContext';
 import UploadTasksPanel from '@/components/ui/UploadTasksPanel';
 import Button from '@/components/ui/Button';
 import { MeetingCard } from '@/components/ui/MeetingCard';
-import { 
-  Plus, 
-  Loader2, 
-  FileAudio, 
-  Video, 
-  ListTodo, 
-  Sparkles, 
-  TrendingUp, 
-  Clock, 
+import {
+  Plus,
+  Loader2,
+  FileAudio,
+  Video,
+  ListTodo,
+  Sparkles,
+  TrendingUp,
+  Clock,
   CheckCircle2,
   Upload,
   Zap,
   BarChart3,
+  Search,
+  Calendar,
+  ArrowUpDown,
 } from 'lucide-react';
 import { uploadAudioFile } from '@/lib/supabase/storage';
 import { createNote } from '@/lib/supabase/database';
@@ -42,10 +45,15 @@ export default function DashboardPage() {
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [activeTab, setActiveTab] = useState<'notes' | 'meetings'>('notes');
 
-  // Search and Filter states
+  // Search and Filter states for Notes
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'audio' | 'documents'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
+
+  // Search and Filter states for Meetings
+  const [meetingSearchQuery, setMeetingSearchQuery] = useState('');
+  const [meetingStatusFilter, setMeetingStatusFilter] = useState<'all' | 'scheduled' | 'active' | 'ended'>('all');
+  const [meetingSortBy, setMeetingSortBy] = useState<'newest' | 'oldest' | 'upcoming' | 'title'>('newest');
 
   const router = useRouter();
   const supabase = createClient();
@@ -211,6 +219,42 @@ export default function DashboardPage() {
     });
 
   const totalNotes = notes.length + sharedNotes.length;
+
+  // Filter and sort meetings
+  const filteredMeetings = meetings
+    .filter((meeting) => {
+      // Search filter - search in title, description, and meeting code
+      const matchesSearch =
+        meetingSearchQuery === '' ||
+        meeting.title?.toLowerCase().includes(meetingSearchQuery.toLowerCase()) ||
+        meeting.description?.toLowerCase().includes(meetingSearchQuery.toLowerCase()) ||
+        meeting.meeting_code?.toLowerCase().includes(meetingSearchQuery.toLowerCase());
+
+      // Status filter
+      const matchesStatus =
+        meetingStatusFilter === 'all' ||
+        meeting.status === meetingStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      switch (meetingSortBy) {
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'upcoming':
+          // Sort by scheduled_at, with null values at the end
+          const dateA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Infinity;
+          const dateB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Infinity;
+          return dateA - dateB;
+        case 'title':
+          return (a.title || '').localeCompare(b.title || '');
+        default:
+          return 0;
+      }
+    });
+
   const stats = {
     total: totalNotes,
     completed: [...notes, ...sharedNotes].filter(n => n.transcript).length,
@@ -492,6 +536,64 @@ export default function DashboardPage() {
           {/* Meetings Tab */}
           {activeTab === 'meetings' && (
             <>
+              {/* Search and Filter for Meetings */}
+              {!loadingMeetings && meetings.length > 0 && (
+                <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300">
+                  <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div className="space-y-4">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search meetings by title, description, or code..."
+                          value={meetingSearchQuery}
+                          onChange={(e) => setMeetingSearchQuery(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-500 font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-purple-300"
+                        />
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      </div>
+
+                      {/* Filters */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-sm font-bold text-gray-900">Filters:</span>
+
+                        {/* Status Filter */}
+                        <select
+                          title="Filter by status"
+                          value={meetingStatusFilter}
+                          onChange={(e) => setMeetingStatusFilter(e.target.value as any)}
+                          className="px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 hover:border-purple-300 cursor-pointer"
+                        >
+                          <option value="all">All Status</option>
+                          <option value="scheduled">Scheduled</option>
+                          <option value="active">Active</option>
+                          <option value="ended">Ended</option>
+                        </select>
+
+                        {/* Sort By */}
+                        <select
+                          title="Sort meetings"
+                          value={meetingSortBy}
+                          onChange={(e) => setMeetingSortBy(e.target.value as any)}
+                          className="px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 hover:border-purple-300 cursor-pointer"
+                        >
+                          <option value="newest">Newest First</option>
+                          <option value="oldest">Oldest First</option>
+                          <option value="upcoming">Upcoming First</option>
+                          <option value="title">Title (A-Z)</option>
+                        </select>
+
+                        {/* Result Count */}
+                        <div className="ml-auto text-sm font-bold text-gray-900">
+                          {filteredMeetings.length} of {meetings.length}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Loading State */}
               {loadingMeetings ? (
                 <div className="flex items-center justify-center py-20">
                   <div className="text-center">
@@ -500,6 +602,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ) : meetings.length === 0 ? (
+                /* Empty State - No meetings at all */
                 <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300">
                   <div className="inline-block p-6 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full mb-6">
                     <Video className="h-16 w-16 text-blue-600 animate-pulse" />
@@ -515,9 +618,32 @@ export default function DashboardPage() {
                     </Button>
                   </div>
                 </div>
+              ) : filteredMeetings.length === 0 ? (
+                /* No Results - Filters applied but no matches */
+                <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300">
+                  <div className="max-w-md mx-auto px-6">
+                    <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
+                      <Search className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No meetings found</h3>
+                    <p className="text-gray-600 mb-6">No meetings match your search or filter criteria</p>
+                    <div className="flex justify-center">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setMeetingSearchQuery('');
+                          setMeetingStatusFilter('all');
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               ) : (
+                /* Meetings Grid */
                 <div className="grid grid-cols-1 gap-4">
-                  {meetings.map((meeting, index) => (
+                  {filteredMeetings.map((meeting, index) => (
                     <div
                       key={meeting.id}
                       className="animate-in fade-in slide-in-from-bottom-4 duration-500"

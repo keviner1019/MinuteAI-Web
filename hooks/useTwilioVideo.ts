@@ -197,15 +197,21 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
       if (existingParticipant) {
         // Update existing participant
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        const { error: updateError } = await (supabase as any)
           .from('meeting_participants')
           .update({ is_active: true, left_at: null })
           .eq('id', existingParticipant.id);
+
+        if (updateError) {
+          console.error('Failed to update participant record:', updateError);
+        }
       } else {
         // Insert new participant
         const role = meeting.host_id === user.id ? 'host' : 'participant';
+        console.log('📝 Registering as participant:', { meeting_id: meeting.id, user_id: user.id, role });
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        const { error: insertError } = await (supabase as any)
           .from('meeting_participants')
           .insert({
             meeting_id: meeting.id,
@@ -214,6 +220,28 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
             is_active: true,
             joined_at: new Date().toISOString(),
           });
+
+        if (insertError) {
+          console.error('❌ Failed to register as participant:', insertError);
+          // Try alternative: update guest_id on meeting if this is not the host
+          if (role === 'participant') {
+            console.log('🔄 Attempting to set guest_id on meeting as fallback...');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { error: guestUpdateError } = await (supabase as any)
+              .from('meetings')
+              .update({ guest_id: user.id })
+              .eq('id', meeting.id)
+              .is('guest_id', null);
+
+            if (guestUpdateError) {
+              console.error('❌ Failed to set guest_id:', guestUpdateError);
+            } else {
+              console.log('✅ Successfully set guest_id as fallback');
+            }
+          }
+        } else {
+          console.log('✅ Successfully registered as participant');
+        }
       }
 
       return { meeting, user };

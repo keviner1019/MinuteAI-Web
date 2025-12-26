@@ -199,10 +199,10 @@ export default function MeetingSummary() {
 
       const data = await response.json();
       setSummary({
-        summary: data.summary.summary,
-        key_points: data.summary.key_points,
-        action_items: data.summary.action_items,
-        sentiment: data.summary.sentiment,
+        summary: data.summary,
+        key_points: data.keyPoints || [],
+        action_items: data.actionItems?.map((item: any) => item.text) || [],
+        sentiment: data.sentiment,
       });
     } catch (error) {
       console.error('Auto summary generation error:', error);
@@ -225,10 +225,10 @@ export default function MeetingSummary() {
 
       const data = await response.json();
       setSummary({
-        summary: data.summary.summary,
-        key_points: data.summary.key_points,
-        action_items: data.summary.action_items,
-        sentiment: data.summary.sentiment,
+        summary: data.summary,
+        key_points: data.keyPoints || [],
+        action_items: data.actionItems?.map((item: any) => item.text) || [],
+        sentiment: data.sentiment,
       });
     } catch (error) {
       console.error('Summary generation error:', error);

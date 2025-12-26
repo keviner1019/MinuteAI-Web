@@ -171,6 +171,40 @@ ${fullTranscript}
       // Don't throw, just log - summary generation succeeded
     }
 
+    // Save full summary to meeting_summaries table
+    try {
+      // First check if a summary already exists
+      const { data: existingSummary } = await supabase
+        .from('meeting_summaries')
+        .select('id')
+        .eq('meeting_id', meetingId)
+        .maybeSingle();
+
+      const summaryRecord = {
+        meeting_id: meetingId,
+        summary: analysis.summary || text.substring(0, 500),
+        key_points: analysis.keyPoints || [],
+        action_items: actionItems.map((item: ActionItem) => item.text),
+        sentiment: analysis.sentiment || 'neutral',
+      };
+
+      if (existingSummary) {
+        // Update existing summary
+        await supabase
+          .from('meeting_summaries')
+          .update(summaryRecord)
+          .eq('meeting_id', meetingId);
+      } else {
+        // Insert new summary
+        await supabase
+          .from('meeting_summaries')
+          .insert(summaryRecord);
+      }
+    } catch (summaryError) {
+      console.error('Failed to save to meeting_summaries:', summaryError);
+      // Don't throw, the API response still works
+    }
+
     return NextResponse.json({
       summary: analysis.summary,
       keyPoints: analysis.keyPoints || [],

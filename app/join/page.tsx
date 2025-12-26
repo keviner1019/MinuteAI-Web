@@ -30,7 +30,7 @@ export default function JoinMeetingPage() {
       // Query for meeting with this code - use maybeSingle() to avoid errors
       const { data: meeting, error: dbError } = await supabase
         .from('meetings')
-        .select('room_id, status, meeting_code')
+        .select('room_id, status, meeting_code, ended_at')
         .eq('meeting_code', codeToSearch)
         .maybeSingle();
 
@@ -47,16 +47,38 @@ export default function JoinMeetingPage() {
         return;
       }
 
-      // Check if meeting has ended
-      if ((meeting as any).status === 'ended') {
-        setError('This meeting has already ended');
-        return;
+      const meetingData = meeting as { room_id: string; status: string; meeting_code: string; ended_at: string | null };
+
+      // Check if meeting has ended - allow rejoining if ended less than 24 hours ago
+      if (meetingData.status === 'ended') {
+        const endedAt = meetingData.ended_at ? new Date(meetingData.ended_at) : null;
+        const now = new Date();
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+        // If the meeting ended more than 24 hours ago, don't allow rejoining
+        if (!endedAt || endedAt < twentyFourHoursAgo) {
+          setError('This meeting has already ended');
+          return;
+        }
+
+        // Meeting ended recently - reactivate it
+        console.log('🔄 Reactivating recently ended meeting...');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: updateError } = await (supabase as any)
+          .from('meetings')
+          .update({ status: 'active', ended_at: null })
+          .eq('meeting_code', codeToSearch);
+
+        if (updateError) {
+          console.error('❌ Failed to reactivate meeting:', updateError);
+          // Continue anyway - the meeting page will handle the actual status
+        }
       }
 
-      console.log('✅ Meeting found! Joining room:', (meeting as any).room_id);
+      console.log('✅ Meeting found! Joining room:', meetingData.room_id);
 
       // Join the meeting
-      router.push(`/meeting/${(meeting as any).room_id}`);
+      router.push(`/meeting/${meetingData.room_id}`);
     } catch (err) {
       console.error('❌ Error joining meeting:', err);
       setError('Failed to join meeting. Please try again.');
