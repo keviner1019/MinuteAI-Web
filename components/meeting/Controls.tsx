@@ -329,12 +329,6 @@ export function Controls({
             {isRecording && isRemoteRecording ? 'Both Recording' : 'Recording'}
           </div>
         )}
-        {isTranscribing && (
-          <div className="flex items-center gap-2 text-green-700 text-sm font-medium bg-green-50 px-3 py-2 rounded-full border border-green-200">
-            <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
-            Live Transcription
-          </div>
-        )}
       </div>
     </div>
   );

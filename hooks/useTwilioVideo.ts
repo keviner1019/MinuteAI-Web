@@ -733,6 +733,8 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
       // Host is leaving but transferring ownership
       console.log('🔄 Host leaving and transferring ownership');
 
+      let isLastParticipant = false;
+
       if (meetingId) {
         // Find the next participant to become host (oldest join time)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -764,8 +766,9 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
             .eq('meeting_id', meetingId)
             .eq('user_id', nextHost.user_id);
         } else {
-          // No other participants, end the meeting
+          // No other participants, end the meeting - this is the last person
           console.log('⚠️ No other participants, ending meeting');
+          isLastParticipant = true;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (supabase as any)
             .from('meetings')
@@ -789,14 +792,41 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
           .eq('user_id', currentUserIdRef.current);
       }
 
-      // Navigate back to dashboard
-      window.location.href = '/dashboard';
+      // Navigate to summary page with last participant flag
+      window.location.href = `/meeting/${roomId}/summary?isLastParticipant=${isLastParticipant}`;
 
     } else {
       // Participant is leaving
       console.log('👋 Participant leaving meeting');
 
+      let isLastParticipant = false;
+
       if (meetingId && currentUserIdRef.current) {
+        // Check if there are other active participants
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: otherParticipants, error: countError } = await (supabase as any)
+          .from('meeting_participants')
+          .select('user_id')
+          .eq('meeting_id', meetingId)
+          .eq('is_active', true)
+          .neq('user_id', currentUserIdRef.current);
+
+        if (!countError && (!otherParticipants || otherParticipants.length === 0)) {
+          // No other active participants - this is the last person
+          console.log('⚠️ Last participant leaving, ending meeting');
+          isLastParticipant = true;
+
+          // End the meeting
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from('meetings')
+            .update({
+              status: 'ended',
+              ended_at: new Date().toISOString()
+            })
+            .eq('id', meetingId);
+        }
+
         // Mark self as left
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any)
@@ -809,8 +839,8 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
           .eq('user_id', currentUserIdRef.current);
       }
 
-      // Navigate back to dashboard
-      window.location.href = '/dashboard';
+      // Navigate to summary page with last participant flag
+      window.location.href = `/meeting/${roomId}/summary?isLastParticipant=${isLastParticipant}`;
     }
   }, [isHost, meetingId, roomId, supabase]);
 

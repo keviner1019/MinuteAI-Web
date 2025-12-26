@@ -18,7 +18,7 @@ export default function Header() {
   const { incoming: pendingRequests } = useFriendRequests();
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
-  // Load user profile picture
+  // Load user profile picture and subscribe to changes
   useEffect(() => {
     if (!user?.id) return;
 
@@ -44,6 +44,30 @@ export default function Header() {
     };
 
     loadUserAvatar();
+
+    // Subscribe to real-time changes for user profile
+    const channel = supabase
+      .channel(`user_profile_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newAvatarUrl = (payload.new as any)?.avatar_url;
+          if (newAvatarUrl !== undefined) {
+            setUserAvatarUrl(newAvatarUrl || user?.user_metadata?.avatar_url || null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const handleLogout = async () => {
@@ -51,8 +75,8 @@ export default function Header() {
     router.push('/login');
   };
 
-  // Don't show header on auth pages or landing page
-  if (!user || pathname === '/' || pathname === '/login' || pathname === '/signup') {
+  // Don't show header on auth pages, landing page, or meeting pages
+  if (!user || pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname?.startsWith('/meeting')) {
     return null;
   }
 

@@ -44,16 +44,11 @@ export default function FriendCard({
     <div className={`bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow ${isRemoving ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Avatar
-              src={friend.avatarUrl}
-              alt={friend.displayName || 'Friend'}
-              size="sm"
-            />
-            <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5">
-              <PresenceIndicator status={friend.status} size="sm" />
-            </div>
-          </div>
+          <Avatar
+            src={friend.avatarUrl}
+            alt={friend.displayName || 'Friend'}
+            size="sm"
+          />
           <div>
             <h3 className="font-medium text-gray-900">
               {friend.displayName || 'Unknown User'}

@@ -14,7 +14,6 @@ interface Transcript {
 interface TranscriptPanelProps {
   transcripts: Transcript[];
   isTranscribing: boolean;
-  onToggleLive?: () => void;
 }
 
 // Speaker color configuration
@@ -33,7 +32,7 @@ const speakerColors = {
   },
 };
 
-export function TranscriptPanel({ transcripts, isTranscribing, onToggleLive }: TranscriptPanelProps) {
+export function TranscriptPanel({ transcripts, isTranscribing }: TranscriptPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Group consecutive transcripts by speaker
@@ -150,13 +149,6 @@ export function TranscriptPanel({ transcripts, isTranscribing, onToggleLive }: T
                       </span>
                     ))}
                   </div>
-
-                  {/* Low confidence indicator */}
-                  {group.segments.some(s => s.confidence < 0.8) && (
-                    <span className="inline-block mt-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-                      Low confidence
-                    </span>
-                  )}
                 </div>
               );
             })}
@@ -176,26 +168,6 @@ export function TranscriptPanel({ transcripts, isTranscribing, onToggleLive }: T
         )}
       </div>
 
-      {/* Live Toggle Button */}
-      {onToggleLive && (
-        <div className="absolute bottom-4 right-4">
-          <button
-            onClick={onToggleLive}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all shadow-lg ${
-              isTranscribing
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-            }`}
-          >
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isTranscribing ? 'bg-white animate-pulse' : 'bg-gray-400'
-              }`}
-            />
-            Live
-          </button>
-        </div>
-      )}
     </div>
   );
 }

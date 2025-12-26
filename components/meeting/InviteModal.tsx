@@ -154,7 +154,7 @@ export function InviteModal({ isOpen, onClose, roomId, meetingCode, meetingId }:
 
   const renderFriendItem = (friend: FriendWithPresence) => {
     const isSelected = selectedFriends.has(friend.friendId);
-    const isOnline = friend.status !== 'offline';
+    const isOnline = friend.status === 'online';
 
     return (
       <button

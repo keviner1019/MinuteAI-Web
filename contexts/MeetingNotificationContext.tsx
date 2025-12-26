@@ -422,20 +422,22 @@ export function MeetingNotificationProvider({ children }: { children: ReactNode 
         status: string;
       };
 
-      // Check if user is already participating
+      // Check if user has ever participated in this meeting
       for (const meeting of activeMeetings as ActiveMeetingRow[]) {
         // Skip if already dismissed
         if (dismissedOngoing.has(meeting.id)) continue;
 
+        // Check if user has ANY participation record (active or not)
+        // This prevents showing notifications for meetings the user already joined and left
         const { data: participation } = await supabase
           .from('meeting_participants')
           .select('id')
           .eq('meeting_id', meeting.id)
           .eq('user_id', userIdRef.current!)
-          .eq('is_active', true)
           .single();
 
-        // If not participating, show notification
+        // If user has participated before (even if they left), don't show notification
+        // Only notify if they've never joined at all
         if (!participation) {
           const { data: hostProfile } = await supabase
             .from('user_profiles')

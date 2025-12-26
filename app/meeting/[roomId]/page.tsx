@@ -7,10 +7,11 @@ import { TranscriptPanel } from '@/components/meeting/TranscriptPanel';
 import { Controls } from '@/components/meeting/Controls';
 import { RecordingCountdown } from '@/components/meeting/RecordingCountdown';
 import { VideoGrid } from '@/components/meeting/VideoGrid';
-import { ParticipantCount } from '@/components/meeting/ParticipantCount';
+import { RecordingNotificationBanner } from '@/components/meeting/RecordingNotificationBanner';
 import { useTwilioVideo } from '@/hooks/useTwilioVideo';
 import { useTranscription } from '@/hooks/useTranscription';
 import { useCompositeRecorder } from '@/hooks/useCompositeRecorder';
+import { useRecordingNotification } from '@/hooks/useRecordingNotification';
 import { createClient } from '@/lib/supabase/client';
 
 export default function MeetingRoom() {
@@ -19,21 +20,27 @@ export default function MeetingRoom() {
   const [participantJoinedName, setParticipantJoinedName] = useState<string | null>(null);
   const [participantLeftName, setParticipantLeftName] = useState<string | null>(null);
   const [recordingEnabled, setRecordingEnabled] = useState(false);
-  const [recordingNotification, setRecordingNotification] = useState<{
+  const [recordingNotificationState, setRecordingNotificationState] = useState<{
     show: boolean;
     message: string;
     tone: 'danger' | 'info' | 'warning';
   }>({ show: false, message: '', tone: 'danger' });
   const recordingToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>('You');
+  const [localUserProfile, setLocalUserProfile] = useState<{
+    display_name?: string;
+    avatar_url?: string;
+  } | null>(null);
 
   const showRecordingToast = useCallback(
     (message: string, tone: 'danger' | 'info' | 'warning' = 'danger') => {
       if (recordingToastTimeout.current) {
         clearTimeout(recordingToastTimeout.current);
       }
-      setRecordingNotification({ show: true, message, tone });
+      setRecordingNotificationState({ show: true, message, tone });
       recordingToastTimeout.current = setTimeout(() => {
-        setRecordingNotification({ show: false, message: '', tone });
+        setRecordingNotificationState({ show: false, message: '', tone });
       }, 3200);
     },
     []
@@ -76,6 +83,45 @@ export default function MeetingRoom() {
     participants,
   } = useTwilioVideo(roomId);
 
+  // Fetch current user info
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+
+        const { data: profile } = await (supabase as any)
+          .from('user_profiles')
+          .select('display_name, avatar_url')
+          .eq('id', user.id)
+          .single() as { data: { display_name: string | null; avatar_url: string | null } | null };
+
+        if (profile) {
+          setCurrentUserName(profile.display_name || user.email || 'You');
+          setLocalUserProfile({
+            display_name: profile.display_name || user.email || 'You',
+            avatar_url: profile.avatar_url || undefined,
+          });
+        }
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Recording notification system
+  const {
+    recordingUsers,
+    isAnyoneRecording: isAnyRemoteRecording,
+    recordingCount,
+    notifications: recordingNotifications,
+    broadcastRecordingStarted,
+    broadcastRecordingStopped,
+  } = useRecordingNotification({
+    meetingId,
+    userId: currentUserId,
+    userName: currentUserName,
+  });
 
   // Create a mixed audio stream for transcription (local + remote)
   const [mixedStream, setMixedStream] = useState<MediaStream | null>(null);
@@ -129,15 +175,87 @@ export default function MeetingRoom() {
   const {
     isRecording,
     isSaving: isSavingRecording,
+    recordingDuration,
+    error: recordingError,
     startRecording,
     stopRecording,
+    updateParticipant,
+    addParticipant,
+    removeParticipant,
   } = useCompositeRecorder(meetingId);
+
   const hasActiveVideo = Boolean(localVideoStream || remoteVideoStream);
   const canRecord = isHost;
 
+  // Broadcast recording state to other participants
   useEffect(() => {
     sendRecordingState(isRecording);
-  }, [isRecording, sendRecordingState]);
+
+    if (isRecording) {
+      broadcastRecordingStarted();
+    } else if (prevRecordingState.current && !isRecording) {
+      broadcastRecordingStopped();
+    }
+
+    prevRecordingState.current = isRecording;
+  }, [isRecording, sendRecordingState, broadcastRecordingStarted, broadcastRecordingStopped]);
+
+  // Update composite recorder when participants change
+  useEffect(() => {
+    if (!isRecording) return;
+
+    participants.forEach((participant, key) => {
+      updateParticipant(participant.userId, {
+        videoStream: participant.videoStream,
+        audioStream: participant.stream,
+        connectionState: participant.connectionState,
+        displayName: participant.displayName,
+        avatarUrl: participant.avatarUrl,
+      });
+    });
+  }, [participants, isRecording, updateParticipant]);
+
+  // Handle participant joining during recording
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const participantArray = Array.from(participants.values());
+    participantArray.forEach((participant) => {
+      addParticipant({
+        userId: participant.userId,
+        displayName: participant.displayName,
+        avatarUrl: participant.avatarUrl,
+        videoStream: participant.videoStream,
+        audioStream: participant.stream,
+        isLocal: false,
+        connectionState: participant.connectionState,
+      });
+    });
+  }, [participants.size, isRecording, addParticipant, participants]);
+
+  // Track previous participants to detect who leaves
+  const prevParticipantsRef = useRef<Set<string>>(new Set());
+
+  // Handle participant leaving during recording
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const currentParticipantIds = new Set(Array.from(participants.keys()));
+
+    // Find participants who were in previous state but not in current state
+    prevParticipantsRef.current.forEach((prevId) => {
+      if (!currentParticipantIds.has(prevId)) {
+        // This participant left, remove them from recording
+        console.log('Removing participant from recording:', prevId);
+        // Extract userId from the key (format: "userId:displayName")
+        const [userId] = prevId.split(':');
+        removeParticipant(userId);
+      }
+    });
+
+    // Update previous participants for next comparison
+    prevParticipantsRef.current = currentParticipantIds;
+  }, [participants, isRecording, removeParticipant]);
 
   useEffect(() => {
     if (!isRecording && recordingEnabled) {
@@ -235,45 +353,23 @@ export default function MeetingRoom() {
       return;
     }
 
-    if (meetingId && (localStream || mixedStream)) {
-      const supabase = createClient();
-
-      // Get local user profile
-      const getLocalProfile = async () => {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (user) {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          return profile || { display_name: user.email || 'You', avatar_url: null };
-        }
-        return { display_name: 'You', avatar_url: null };
-      };
-
-      getLocalProfile().then((localProfile) => {
-        startRecording(
-          localVideoStream,
-          remoteVideoStream,
-          mixedStream || localStream,
-          {
-            display_name: localProfile?.display_name || undefined,
-            avatar_url: localProfile?.avatar_url || undefined,
-          },
-          remoteUserProfile
-            ? {
-                display_name: remoteUserProfile.display_name || undefined,
-                avatar_url: remoteUserProfile.avatar_url || undefined,
-              }
-            : { display_name: 'Guest', avatar_url: undefined }
-        );
-        setRecordingEnabled(true);
-      });
+    if (meetingId && localStream) {
+      // Pass localStream only (not mixedStream) - the recorder will mix all audio sources
+      // Each participant contributes their own audio stream through the participants Map
+      startRecording(
+        localVideoStream,
+        remoteVideoStream,
+        localStream, // Use local stream only, remote audio comes from participants Map
+        localUserProfile || { display_name: currentUserName },
+        remoteUserProfile
+          ? {
+              display_name: remoteUserProfile.display_name || undefined,
+              avatar_url: remoteUserProfile.avatar_url || undefined,
+            }
+          : { display_name: 'Guest' },
+        participants
+      );
+      setRecordingEnabled(true);
     } else {
       console.warn('No media stream available for recording');
       showRecordingToast('No media available to record right now.', 'warning');
@@ -308,24 +404,18 @@ export default function MeetingRoom() {
   }, [isRecording, isSavingRecording, stopRecording]);
 
   // Track which users have been shown the "joined" notification (by their user ID + session)
-  // We use a Map to track both the user ID and their session ID to handle reconnections properly
   const shownJoinedNotifications = useRef<Map<string, string>>(new Map());
   const isInitialConnectionRef = useRef(true);
 
   // Show notification when participant joins with their name
-  // Only show for new participants joining AFTER we connected (not for participants already in the room)
-  // Only the host sees join notifications - non-hosts don't see "joined" notifications
   useEffect(() => {
     if (!isConnected || !remoteUserProfile?.id) return;
 
-    // Don't show "joined" notifications if we're not the host
-    // (when you join someone else's room, you don't need to see "X joined the meeting")
     if (!isHost) {
       isInitialConnectionRef.current = false;
       return;
     }
 
-    // Get the current participant from the participants map
     const currentParticipant = Array.from(participants.values()).find(
       p => p.userId === remoteUserProfile.id
     );
@@ -335,23 +425,15 @@ export default function MeetingRoom() {
     const previousSessionId = shownJoinedNotifications.current.get(remoteUserProfile.id);
     const currentSessionId = currentParticipant.sessionId;
 
-    // Only show notification if:
-    // 1. This is a completely new user (not in our map), OR
-    // 2. This is the same user with a DIFFERENT session (they left and rejoined, not just reconnected)
-    // Don't show notification for reconnections (same session ID)
     if (previousSessionId === undefined || (previousSessionId !== currentSessionId && !isInitialConnectionRef.current)) {
-      // For reconnections with same session, Twilio handles it internally and doesn't create new participant
-      // If the session ID changed, it means the user left and rejoined (new session)
       shownJoinedNotifications.current.set(remoteUserProfile.id, currentSessionId);
 
-      // Skip the very first connection notification if we want (optional)
       if (isInitialConnectionRef.current) {
         isInitialConnectionRef.current = false;
         const userName = remoteUserProfile.display_name || 'Participant';
         setParticipantJoinedName(userName);
         setTimeout(() => setParticipantJoinedName(null), 3000);
       } else if (previousSessionId !== currentSessionId) {
-        // User rejoined with new session
         const userName = remoteUserProfile.display_name || 'Participant';
         setParticipantJoinedName(userName);
         setTimeout(() => setParticipantJoinedName(null), 3000);
@@ -364,45 +446,34 @@ export default function MeetingRoom() {
     if (peerLeft && remoteUserProfile) {
       const userName = remoteUserProfile.display_name || 'Participant';
       setParticipantLeftName(userName);
-      // Hide notification after 3 seconds
       setTimeout(() => setParticipantLeftName(null), 3000);
     }
   }, [peerLeft, remoteUserProfile]);
 
-  // Show notification when remote user starts/stops recording
-  useEffect(() => {
-    if (remoteUserProfile && isConnected) {
-      const userName = remoteUserProfile.display_name || 'Participant';
-
-      if (isRemoteRecording !== prevRecordingState.current) {
-        if (isRemoteRecording) {
-          showRecordingToast(`${userName} started recording`, 'danger');
-        } else if (prevRecordingState.current) {
-          showRecordingToast(`${userName} stopped recording`, 'info');
-        }
-        prevRecordingState.current = isRemoteRecording;
-      }
-    }
-  }, [isRemoteRecording, remoteUserProfile, isConnected, showRecordingToast]);
+  // Note: Legacy recording toast removed - RecordingNotificationBanner handles this now
 
   // Calculate participant count
   const participantCount = useMemo(() => {
     return participants.size + 1; // +1 for local user
   }, [participants]);
 
+  // Determine if any remote user is recording (from notification system or legacy)
+  const isAnyRemoteUserRecording = isAnyRemoteRecording || isRemoteRecording;
+
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
-      {/* Participant Counter */}
-      <ParticipantCount count={participantCount} />
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      {/* Recording Notification Banner */}
+      <RecordingNotificationBanner
+        recordingUsers={recordingUsers}
+        isLocalRecording={isRecording}
+      />
+
 
       {/* Participant Joined Notification */}
       {participantJoinedName && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
           <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-3.5 rounded-2xl shadow-2xl shadow-emerald-500/25 flex items-center gap-3 border border-emerald-400/30">
-            {/* Animated background shimmer */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-
-            {/* Pulse ring effect */}
             <div className="relative">
               <span className="absolute inset-0 rounded-full bg-white/30 animate-ping" style={{ animationDuration: '1.5s' }} />
               <div className="relative w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -411,7 +482,6 @@ export default function MeetingRoom() {
                 </svg>
               </div>
             </div>
-
             <div className="flex flex-col">
               <span className="font-semibold text-base leading-tight">{participantJoinedName}</span>
               <span className="text-emerald-100 text-sm">joined the meeting</span>
@@ -424,13 +494,11 @@ export default function MeetingRoom() {
       {participantLeftName && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
           <div className="relative overflow-hidden bg-gradient-to-r from-slate-600 to-slate-700 text-white px-6 py-3.5 rounded-2xl shadow-2xl shadow-slate-500/25 flex items-center gap-3 border border-slate-500/30">
-            {/* Icon */}
             <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </div>
-
             <div className="flex flex-col">
               <span className="font-semibold text-base leading-tight">{participantLeftName}</span>
               <span className="text-slate-300 text-sm">left the meeting</span>
@@ -439,33 +507,25 @@ export default function MeetingRoom() {
         </div>
       )}
 
-      {/* Recording Notification */}
-      {recordingNotification.show && (
+      {/* Recording Toast Notification (legacy) */}
+      {recordingNotificationState.show && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top">
           <div
             className={`flex items-center gap-4 rounded-2xl px-6 py-3 shadow-2xl ${
-              recordingNotification.tone === 'warning'
+              recordingNotificationState.tone === 'warning'
                 ? 'bg-amber-500/95 text-white'
-                : recordingNotification.tone === 'info'
+                : recordingNotificationState.tone === 'info'
                 ? 'bg-sky-600/95 text-white'
                 : 'bg-red-600/95 text-white'
             }`}
           >
             <div className="flex items-center gap-2">
               <span className="flex h-3 w-3">
-                <span
-                  className={`h-3 w-3 rounded-full ${
-                    recordingNotification.tone === 'warning'
-                      ? 'bg-white'
-                      : recordingNotification.tone === 'info'
-                      ? 'bg-white'
-                      : 'bg-white'
-                  } animate-pulse`}
-                />
+                <span className="h-3 w-3 rounded-full bg-white animate-pulse" />
               </span>
               <p className="text-xs uppercase tracking-[0.3em] opacity-80">Recording</p>
             </div>
-            <p className="text-sm font-semibold">{recordingNotification.message}</p>
+            <p className="text-sm font-semibold">{recordingNotificationState.message}</p>
           </div>
         </div>
       )}
@@ -476,7 +536,7 @@ export default function MeetingRoom() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <span>⚠️</span>
+                <span>Warning</span>
                 <span className="font-medium">{error}</span>
               </div>
               <p className="text-xs opacity-90 ml-6">
@@ -494,10 +554,9 @@ export default function MeetingRoom() {
         </div>
       )}
 
-
       {connectionState === 'failed' && (
         <div className="bg-red-50 border-b border-red-200 text-red-800 px-4 py-3 text-sm flex items-center justify-between flex-shrink-0">
-          <span>❌ Connection failed. This might be due to firewall or network restrictions.</span>
+          <span>Connection failed. This might be due to firewall or network restrictions.</span>
           <button
             onClick={() => window.location.reload()}
             className="underline hover:no-underline ml-4"
@@ -510,21 +569,24 @@ export default function MeetingRoom() {
       {/* Audio and Video Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left: Audio visualization and Video */}
-        <div className="flex-1 flex flex-col p-2 gap-2">
+        <div className="flex-1 flex flex-col p-2 gap-2 min-h-0 overflow-hidden">
           {/* Video Section - Show when either local or remote video is enabled */}
           {hasActiveVideo ? (
-            <div className="flex-1">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <VideoGrid
                 localParticipant={{
                   stream: localStream,
                   videoStream: localVideoStream,
                   isMuted: isMuted,
-                  displayName: 'You',
-                  avatarUrl: null,
+                  displayName: currentUserName,
+                  avatarUrl: localUserProfile?.avatar_url || null,
                   isSpeaking: false,
+                  isRecording: isRecording,
                 }}
                 remoteParticipants={Array.from(participants.values())}
                 speakingUserId={null}
+                isRecording={isRecording}
+                isRemoteRecording={isAnyRemoteUserRecording}
               />
             </div>
           ) : (
@@ -545,7 +607,6 @@ export default function MeetingRoom() {
           <TranscriptPanel
             transcripts={transcripts}
             isTranscribing={isTranscribing}
-            onToggleLive={handleToggleTranscription}
           />
         )}
       </div>
@@ -562,7 +623,7 @@ export default function MeetingRoom() {
           isHost={isHost}
           participantCount={participantCount}
           isVideoEnabled={isVideoEnabled}
-          isRemoteRecording={isRemoteRecording}
+          isRemoteRecording={isAnyRemoteUserRecording}
           onToggleAudio={toggleAudio}
           onToggleTranscription={handleToggleTranscription}
           onToggleRecording={handleToggleRecording}

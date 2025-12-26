@@ -82,14 +82,25 @@ export default function CreateMeetingModal({
   const { friends, loading: loadingFriends } = useFriends();
   const { friends: friendsWithPresence } = useFriendsPresence();
 
-  // Merge presence data with friends
-  const friendsWithStatus = friends.map((friend) => {
-    const presence = friendsWithPresence.find((f) => f.friendId === friend.friendId);
-    return {
-      ...friend,
-      status: presence?.status || friend.status,
-    };
-  });
+  // Merge presence data with friends and sort by online status
+  const friendsWithStatus = friends
+    .map((friend) => {
+      const presence = friendsWithPresence.find((f) => f.friendId === friend.friendId);
+      return {
+        ...friend,
+        status: presence?.status || friend.status,
+      };
+    })
+    .sort((a, b) => {
+      // Sort order: online > away > busy > offline
+      const statusOrder: Record<PresenceStatus, number> = {
+        online: 0,
+        away: 1,
+        busy: 2,
+        offline: 3,
+      };
+      return statusOrder[a.status] - statusOrder[b.status];
+    });
 
   // Reset form when modal closes
   useEffect(() => {
@@ -451,18 +462,18 @@ export default function CreateMeetingModal({
                                 {(friend.displayName || friend.email || '?')[0].toUpperCase()}
                               </div>
                             )}
-                            <span className="absolute bottom-0 right-0">
+                            <span className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center">
+                              {friend.status === 'online' && (
+                                <>
+                                  <span className="absolute w-4 h-4 bg-green-400 rounded-full animate-ping opacity-75" />
+                                  <span className="absolute w-3.5 h-3.5 bg-green-400 rounded-full animate-pulse opacity-50" />
+                                </>
+                              )}
                               <span
-                                className={`block w-3 h-3 rounded-full border-2 border-white ${getStatusColor(
+                                className={`relative w-3 h-3 rounded-full border-2 border-white ${getStatusColor(
                                   friend.status
                                 )}`}
                               />
-                              {friend.status === 'online' && (
-                                <>
-                                  <span className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
-                                  <span className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                                </>
-                              )}
                             </span>
                           </div>
                           <span className="text-sm font-medium text-gray-900">
