@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { CalendarEvent, CalendarStats } from '@/types/calendar';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
-import { highlightElementAfterDelay } from '@/lib/utils/highlight';
+import { highlightElementWithRetry } from '@/lib/utils/highlight';
 
 function CalendarPageContent() {
   const { user } = useAuth();
@@ -48,10 +48,12 @@ function CalendarPageContent() {
         const targetDate = new Date(year, month, day);
         setSelectedDate(targetDate);
 
-        // Highlight the calendar day cell after a short delay
-        setTimeout(() => {
-          highlightElementAfterDelay(`calendar-day-${day}`, 300, 'calendar');
-        }, 500);
+        // Highlight the calendar day cell with retry (waits for element to be rendered)
+        highlightElementWithRetry(`calendar-day-${day}`, 'calendar', 30, 100).then((found) => {
+          if (!found) {
+            console.warn(`[CalendarPage] Could not find calendar-day-${day} to highlight`);
+          }
+        });
       }
 
       setInitializedFromUrl(true);

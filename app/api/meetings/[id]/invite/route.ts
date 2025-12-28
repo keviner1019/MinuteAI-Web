@@ -104,6 +104,11 @@ export async function POST(
 
     const alreadyInvited = new Set(existingInvites?.map(i => i.invitee_email) || []);
 
+    // For scheduled meetings, auto-accept invitations so they appear on calendar immediately
+    // For instant/active meetings, keep as pending so user must explicitly accept
+    const isScheduled = meeting.status === 'scheduled' && meeting.scheduled_at;
+    const invitationStatus = isScheduled ? 'accepted' : 'pending';
+
     // Create new invitations (skip already invited)
     const newInvitations = Array.from(friendsMap.entries())
       .filter(([_, email]) => !alreadyInvited.has(email.toLowerCase()))
@@ -112,7 +117,7 @@ export async function POST(
         inviter_id: user.id,
         invitee_email: email.toLowerCase(),
         token: generateToken(),
-        status: 'pending',
+        status: invitationStatus,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
 
@@ -124,6 +129,45 @@ export async function POST(
       if (insertError) {
         console.error('Failed to create invitations:', insertError);
         return NextResponse.json({ error: 'Failed to create invitations' }, { status: 500 });
+      }
+
+      // For scheduled meetings, also add invitees as participants
+      if (isScheduled) {
+        for (const [friendId, email] of friendsMap.entries()) {
+          if (alreadyInvited.has(email.toLowerCase())) continue;
+
+          try {
+            // Get friend's profile
+            const { data: friendProfile } = await supabaseAdmin
+              .from('user_profiles')
+              .select('display_name, avatar_url')
+              .eq('id', friendId)
+              .single();
+
+            const friendProfileData = friendProfile as { display_name: string | null; avatar_url: string | null } | null;
+
+            await supabaseAdmin.from('meeting_participants').upsert({
+              meeting_id: meetingId,
+              user_id: friendId,
+              session_id: `participant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              display_name: friendProfileData?.display_name || email.split('@')[0],
+              avatar_url: friendProfileData?.avatar_url || null,
+              role: 'participant',
+              is_active: false,
+              permissions: {
+                can_speak: true,
+                can_share_screen: true,
+                can_record: false,
+                can_invite: false,
+                can_kick: false,
+              },
+            }, {
+              onConflict: 'meeting_id,user_id',
+            });
+          } catch (participantError) {
+            console.error(`Failed to add participant ${friendId}:`, participantError);
+          }
+        }
       }
     }
 
@@ -138,7 +182,8 @@ export async function POST(
 
     for (const friendId of invitedFriendIds) {
       try {
-        await pusher.trigger(`private-user-${friendId}`, 'meeting-invite', {
+        const channelName = `private-user-${friendId}`;
+        const eventData = {
           type: 'meeting-invite',
           meetingId: meeting.id,
           roomId: meeting.room_id,
@@ -151,9 +196,15 @@ export async function POST(
             avatarUrl: profile?.avatar_url || null,
           },
           timestamp: new Date().toISOString(),
-        });
+        };
+
+        console.log(`[Invite] Sending meeting-invite to channel: ${channelName}`, eventData);
+
+        await pusher.trigger(channelName, 'meeting-invite', eventData);
+
+        console.log(`[Invite] Successfully sent notification to ${friendId}`);
       } catch (pusherError) {
-        console.error(`Failed to send notification to ${friendId}:`, pusherError);
+        console.error(`[Invite] Failed to send notification to ${friendId}:`, pusherError);
       }
     }
 

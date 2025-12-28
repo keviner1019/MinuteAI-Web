@@ -10,8 +10,11 @@ interface NotificationPayload {
     | 'collaborator-added'
     | 'collaborator-removed'
     | 'action-item-completed'
+    | 'action-item-uncompleted'
     | 'action-item-updated'
     | 'action-item-deleted'
+    | 'action-item-added'
+    | 'action-item-deadline-changed'
     | 'note-updated'
     | 'invitation-accepted'
     | 'invitation-declined';
@@ -56,7 +59,7 @@ function getPusherInstance(): Pusher {
  * Note: Meeting invites are handled by MeetingNotificationContext which shows the proper modal
  */
 export function useCollaborationNotifications() {
-  const { showCollaboratorAddedToast, showActionItemUpdateToast, showToast } = useToast();
+  const { showCollaboratorAddedToast, showActionItemUpdateToast, showActionItemAddedToast, showActionItemDeadlineChangedToast, showToast } = useToast();
   const channelRef = useRef<Channel | null>(null);
   const userIdRef = useRef<string | null>(null);
   const processedEventsRef = useRef<Set<string>>(new Set());
@@ -86,7 +89,20 @@ export function useCollaborationNotifications() {
             'completed',
             payload.data?.itemText || 'a task',
             avatarUrl,
-            payload.data?.itemId
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
+          );
+          break;
+        case 'action-item-uncompleted':
+          showActionItemUpdateToast(
+            senderName,
+            'uncompleted',
+            payload.data?.itemText || 'a task',
+            avatarUrl,
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
           );
           break;
         case 'action-item-updated':
@@ -95,7 +111,9 @@ export function useCollaborationNotifications() {
             'updated',
             payload.data?.itemText || 'a task',
             avatarUrl,
-            payload.data?.itemId
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
           );
           break;
         case 'action-item-deleted':
@@ -104,7 +122,30 @@ export function useCollaborationNotifications() {
             'deleted',
             payload.data?.itemText || 'a task',
             avatarUrl,
-            payload.data?.itemId
+            payload.data?.itemId,
+            null, // No deadline for deleted items
+            payload.noteId
+          );
+          break;
+        case 'action-item-added':
+          showActionItemAddedToast(
+            senderName,
+            payload.data?.itemText || 'a task',
+            avatarUrl,
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
+          );
+          break;
+        case 'action-item-deadline-changed':
+          showActionItemDeadlineChangedToast(
+            senderName,
+            payload.data?.itemText || 'a task',
+            payload.data?.oldDeadline || null,
+            payload.data?.newDeadline || null,
+            avatarUrl,
+            payload.data?.itemId,
+            payload.noteId
           );
           break;
         case 'invitation-accepted':
@@ -128,7 +169,7 @@ export function useCollaborationNotifications() {
           break;
       }
     },
-    [showCollaboratorAddedToast, showActionItemUpdateToast, showToast]
+    [showCollaboratorAddedToast, showActionItemUpdateToast, showActionItemAddedToast, showActionItemDeadlineChangedToast, showToast]
   );
 
   // Note: meeting-invite handler removed - now handled by MeetingNotificationContext
@@ -180,7 +221,7 @@ export function useCollaborationNotifications() {
  * Hook that listens for updates on a specific note (for collaborators viewing the same note)
  */
 export function useNoteCollaborationNotifications(noteId: string | null) {
-  const { showActionItemUpdateToast } = useToast();
+  const { showActionItemUpdateToast, showActionItemAddedToast, showActionItemDeadlineChangedToast } = useToast();
   const channelRef = useRef<Channel | null>(null);
   const userIdRef = useRef<string | null>(null);
   const processedEventsRef = useRef<Set<string>>(new Set());
@@ -206,7 +247,20 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
             'completed',
             payload.data?.itemText || 'a task',
             avatarUrl,
-            payload.data?.itemId
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
+          );
+          break;
+        case 'action-item-uncompleted':
+          showActionItemUpdateToast(
+            senderName,
+            'uncompleted',
+            payload.data?.itemText || 'a task',
+            avatarUrl,
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
           );
           break;
         case 'action-item-updated':
@@ -215,7 +269,9 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
             'updated',
             payload.data?.itemText || 'a task',
             avatarUrl,
-            payload.data?.itemId
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
           );
           break;
         case 'action-item-deleted':
@@ -224,12 +280,35 @@ export function useNoteCollaborationNotifications(noteId: string | null) {
             'deleted',
             payload.data?.itemText || 'a task',
             avatarUrl,
-            payload.data?.itemId
+            payload.data?.itemId,
+            null,
+            payload.noteId
+          );
+          break;
+        case 'action-item-added':
+          showActionItemAddedToast(
+            senderName,
+            payload.data?.itemText || 'a task',
+            avatarUrl,
+            payload.data?.itemId,
+            payload.data?.deadline || null,
+            payload.noteId
+          );
+          break;
+        case 'action-item-deadline-changed':
+          showActionItemDeadlineChangedToast(
+            senderName,
+            payload.data?.itemText || 'a task',
+            payload.data?.oldDeadline || null,
+            payload.data?.newDeadline || null,
+            avatarUrl,
+            payload.data?.itemId,
+            payload.noteId
           );
           break;
       }
     },
-    [showActionItemUpdateToast]
+    [showActionItemUpdateToast, showActionItemAddedToast, showActionItemDeadlineChangedToast]
   );
 
   useEffect(() => {

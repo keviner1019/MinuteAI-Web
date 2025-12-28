@@ -122,7 +122,7 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
         .maybeSingle() as { data: MeetingRecord | null; error: { message: string } | null };
 
       if (fetchError) {
-        console.error('Error fetching meeting:', fetchError);
+        console.error('Error fetching meeting:', JSON.stringify(fetchError, null, 2));
       }
 
       let meeting: MeetingRecord | null = existingMeeting;
@@ -153,12 +153,12 @@ export function useTwilioVideo(roomId: string): UseTwilioVideoReturn {
             if (raceMeeting) {
               meeting = raceMeeting;
             } else {
-              console.error('Error creating meeting:', createError);
+              console.error('Error creating meeting:', JSON.stringify(createError, null, 2));
               setError('Failed to create meeting');
               return null;
             }
           } else {
-            console.error('Error creating meeting:', createError);
+            console.error('Error creating meeting:', JSON.stringify(createError, null, 2));
             setError('Failed to create meeting');
             return null;
           }

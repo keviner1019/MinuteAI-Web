@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { highlightElementWithRetry, HighlightType } from '@/lib/utils/highlight';
 import {
   ArrowLeft,
   Loader2,
@@ -41,9 +42,10 @@ interface ActionItemWithNote extends ActionItem {
   ownerName?: string;
 }
 
-export default function TodosPage() {
-  const { user } = useAuth();
+function TodosPageContent() {
+  const { user, session } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [todos, setTodos] = useState<ActionItemWithNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -60,11 +62,56 @@ export default function TodosPage() {
   const [sortBy, setSortBy] = useState<'deadline' | 'priority' | 'created' | 'note'>('priority');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // URL-based highlighting state
+  const [highlightProcessed, setHighlightProcessed] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<string | null>(null);
+  const [showCalendarLink, setShowCalendarLink] = useState(false);
+
+  // Navigate to calendar with the associated date
+  const navigateToCalendar = useCallback(() => {
+    if (calendarDate) {
+      const date = new Date(calendarDate);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+      router.push(`/calendar?year=${year}&month=${month}&day=${day}&highlight=calendar-day-${day}`);
+    }
+  }, [calendarDate, router]);
+
   useEffect(() => {
     if (user) {
       loadTodos();
     }
   }, [user]);
+
+  // Handle URL-based highlighting after todos are loaded
+  useEffect(() => {
+    if (loading || highlightProcessed) return;
+
+    const highlight = searchParams.get('highlight');
+    const highlightType = searchParams.get('highlightType') as HighlightType | null;
+    const calendarDateParam = searchParams.get('calendarDate');
+
+    if (highlight) {
+      setHighlightProcessed(true);
+
+      // Set calendar date for the floating button
+      if (calendarDateParam) {
+        setCalendarDate(calendarDateParam);
+        setShowCalendarLink(true);
+      }
+
+      // Determine highlight type based on URL param or default to 'todo'
+      let effectiveType: HighlightType = highlightType || 'todo';
+
+      // Try to highlight the element with retry (waits up to 2 seconds)
+      highlightElementWithRetry(highlight, effectiveType, 20, 100).then((found) => {
+        if (!found) {
+          console.warn(`[TodosPage] Could not find element to highlight: ${highlight}`);
+        }
+      });
+    }
+  }, [loading, searchParams, highlightProcessed]);
 
   const loadTodos = async () => {
     if (!user?.id) return;
@@ -86,18 +133,40 @@ export default function TodosPage() {
   };
 
   const handleToggleComplete = async (noteId: string, actionItemId: string, completed: boolean) => {
-    try {
-      const { updateSingleActionItem } = await import('@/lib/supabase/database');
-      await updateSingleActionItem(noteId, actionItemId, { completed: !completed });
+    // Optimistically update UI
+    setTodos((prev) =>
+      prev.map((todo) =>
+        todo.id === actionItemId && todo.noteId === noteId
+          ? { ...todo, completed: !completed }
+          : todo
+      )
+    );
 
+    try {
+      const response = await fetch(`/api/notes/${noteId}/action-items/${actionItemId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          updates: { completed: !completed },
+          changeType: completed ? 'uncompleted' : 'completed',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update todo');
+      }
+    } catch (err: any) {
+      // Revert on error
       setTodos((prev) =>
         prev.map((todo) =>
           todo.id === actionItemId && todo.noteId === noteId
-            ? { ...todo, completed: !completed }
+            ? { ...todo, completed }
             : todo
         )
       );
-    } catch (err: any) {
       console.error('Error updating todo:', err);
       alert('Failed to update todo. Please try again.');
     }
@@ -113,18 +182,33 @@ export default function TodosPage() {
   const handleSaveEdit = async (noteId: string, actionItemId: string) => {
     if (!editText.trim()) return;
 
+    const updates = {
+      text: editText.trim(),
+      priority: editPriority || undefined,
+      deadline: editDeadline || undefined,
+    };
+
     try {
-      const { updateSingleActionItem } = await import('@/lib/supabase/database');
-      await updateSingleActionItem(noteId, actionItemId, {
-        text: editText.trim(),
-        priority: editPriority || undefined,
-        deadline: editDeadline || undefined,
+      const response = await fetch(`/api/notes/${noteId}/action-items/${actionItemId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          updates,
+          changeType: 'updated',
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update todo');
+      }
 
       setTodos((prev) =>
         prev.map((todo) =>
           todo.id === actionItemId && todo.noteId === noteId
-            ? { ...todo, text: editText.trim(), priority: editPriority || undefined, deadline: editDeadline || undefined }
+            ? { ...todo, ...updates }
             : todo
         )
       );
@@ -146,8 +230,20 @@ export default function TodosPage() {
     if (!deleteConfirm) return;
 
     try {
-      const { deleteSingleActionItem } = await import('@/lib/supabase/database');
-      await deleteSingleActionItem(deleteConfirm.noteId, deleteConfirm.todoId);
+      const response = await fetch(
+        `/api/notes/${deleteConfirm.noteId}/action-items/${deleteConfirm.todoId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete todo');
+      }
+
       setTodos((prev) => prev.filter((todo) => !(todo.id === deleteConfirm.todoId && todo.noteId === deleteConfirm.noteId)));
       setDeleteConfirm(null);
     } catch (err: any) {
@@ -521,11 +617,12 @@ export default function TodosPage() {
 
                         return (
                           <div
-                            key={todo.id}
+                            key={`${noteId}-${todo.id}`}
+                            id={`todo-${noteId}-${todo.id}`}
                             className={`
                               relative rounded-xl border-2 p-4 transition-all duration-300
-                              ${todo.completed 
-                                ? 'bg-gray-50 border-gray-200 opacity-75' 
+                              ${todo.completed
+                                ? 'bg-gray-50 border-gray-200 opacity-75'
                                 : overdue
                                   ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-300 shadow-lg shadow-red-100'
                                   : 'bg-white border-gray-200 hover:border-purple-300 hover:shadow-lg'
@@ -706,7 +803,32 @@ export default function TodosPage() {
           cancelText="Cancel"
           variant="danger"
         />
+
+        {/* Floating Calendar Link Button - Shows when navigating from notification with date */}
+        {showCalendarLink && calendarDate && (
+          <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-500">
+            <button
+              onClick={navigateToCalendar}
+              className="group flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-full shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 transition-all duration-300 hover:scale-105"
+            >
+              <Calendar className="h-5 w-5 group-hover:animate-pulse" />
+              <span className="font-semibold">View in Calendar</span>
+              <span className="text-sm opacity-90">
+                {new Date(calendarDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </ProtectedRoute>
+  );
+}
+
+// Wrap with Suspense for useSearchParams in useHighlight hook
+export default function TodosPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center"><div className="text-gray-600">Loading...</div></div>}>
+      <TodosPageContent />
+    </Suspense>
   );
 }

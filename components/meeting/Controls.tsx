@@ -131,7 +131,7 @@ export function Controls({
         setTimeout(fetchMeetingCode, 1000);
       }
     } catch (error) {
-      console.error('Error fetching meeting code:', error);
+      console.error('Error fetching meeting code:', JSON.stringify(error, null, 2));
     }
   };
 

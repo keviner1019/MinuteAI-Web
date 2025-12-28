@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { actionItems, changeType, changedItem } = body as {
       actionItems: ActionItem[];
-      changeType?: 'completed' | 'updated' | 'deleted' | 'added';
+      changeType?: 'completed' | 'uncompleted' | 'updated' | 'deleted' | 'added';
       changedItem?: ActionItem;
     };
 
@@ -118,11 +118,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       const notificationType =
         changeType === 'completed'
           ? 'action-item-completed'
+          : changeType === 'uncompleted'
+          ? 'action-item-uncompleted'
           : changeType === 'deleted'
           ? 'action-item-deleted'
           : changeType === 'added'
-          ? 'action-item-updated' // Treat added as updated for notifications
+          ? 'action-item-added'
           : 'action-item-updated';
+
+      // Build notification data with deadline info
+      const notificationData: Record<string, any> = {
+        itemText: changedItem.text,
+        itemId: changedItem.id,
+        deadline: changedItem.deadline || null,
+      };
 
       // Send notification to each collaborator except the one who made the change
       for (const collaboratorId of collaboratorIds) {
@@ -136,10 +145,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
               displayName: userProfile?.display_name || null,
               avatarUrl: userProfile?.avatar_url || null,
             },
-            data: {
-              itemText: changedItem.text,
-              itemId: changedItem.id,
-            },
+            data: notificationData,
             timestamp: new Date().toISOString(),
           });
         }
@@ -158,8 +164,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             avatarUrl: userProfile?.avatar_url || null,
           },
           data: {
-            itemText: changedItem.text,
-            itemId: changedItem.id,
+            ...notificationData,
             actionItems, // Include updated items for sync
           },
           timestamp: new Date().toISOString(),

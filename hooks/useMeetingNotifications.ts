@@ -69,13 +69,13 @@ export function useMeetingNotifications() {
         .single();
 
       if (error) {
-        console.error('Error fetching meeting:', error);
+        console.error('Error fetching meeting:', JSON.stringify(error, null, 2));
         return null;
       }
 
       return data;
     } catch (err) {
-      console.error('Error fetching meeting:', err);
+      console.error('Error fetching meeting:', err instanceof Error ? err.message : JSON.stringify(err, null, 2));
       return null;
     }
   }, []);

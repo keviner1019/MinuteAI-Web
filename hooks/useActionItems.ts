@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { ActionItem } from '@/types';
 
-export type ActionItemChangeType = 'added' | 'completed' | 'updated' | 'deleted';
+export type ActionItemChangeType = 'added' | 'completed' | 'uncompleted' | 'updated' | 'deleted';
 
 export interface ActionItemChange {
   type: ActionItemChangeType;
@@ -75,7 +75,7 @@ export function useActionItems({
 
   // Update action item
   const updateItem = useCallback(
-    async (id: string, updates: Partial<ActionItem>, changeType: 'completed' | 'updated' = 'updated') => {
+    async (id: string, updates: Partial<ActionItem>, changeType: 'completed' | 'uncompleted' | 'updated' = 'updated') => {
       const updatedItem = items.find((item) => item.id === id);
       if (!updatedItem) return;
 
@@ -127,8 +127,9 @@ export function useActionItems({
       const item = items.find((i) => i.id === id);
       if (!item) return;
 
-      // Use 'completed' change type when toggling completion
-      await updateItem(id, { completed: !item.completed }, 'completed');
+      // Use appropriate change type based on current state
+      const changeType = item.completed ? 'uncompleted' : 'completed';
+      await updateItem(id, { completed: !item.completed }, changeType);
     },
     [items, updateItem]
   );

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, UserPlus, UserCheck, Bell, FileText, CheckSquare, Video, Calendar, ArrowRight } from 'lucide-react';
-import { highlightElementAfterDelay, HighlightType } from '@/lib/utils/highlight';
+import { HighlightType } from '@/lib/utils/highlight';
 
 export type ToastType =
   | 'info'
@@ -14,6 +14,8 @@ export type ToastType =
   | 'friend_accepted'
   | 'collaborator_added'
   | 'action_item_update'
+  | 'action_item_added'
+  | 'action_item_deadline_changed'
   | 'meeting_invite'
   | 'meeting_started'
   | 'meeting_ended'
@@ -42,6 +44,9 @@ interface Toast {
   navigateTo?: string;
   highlightId?: string;
   highlightType?: HighlightType;
+  // For dual navigation (e.g., calendar + todo)
+  calendarDate?: string; // ISO date string for calendar navigation
+  secondaryHighlightId?: string; // Secondary element to highlight
 }
 
 interface ToastContextType {
@@ -58,10 +63,29 @@ interface ToastContextType {
   ) => void;
   showActionItemUpdateToast: (
     userName: string,
-    action: 'completed' | 'updated' | 'deleted',
+    action: 'completed' | 'uncompleted' | 'updated' | 'deleted',
     itemText: string,
     avatar?: string | null,
-    todoId?: string
+    todoId?: string,
+    deadline?: string | null,
+    noteId?: string
+  ) => void;
+  showActionItemAddedToast: (
+    userName: string,
+    itemText: string,
+    avatar?: string | null,
+    todoId?: string,
+    deadline?: string | null,
+    noteId?: string
+  ) => void;
+  showActionItemDeadlineChangedToast: (
+    userName: string,
+    itemText: string,
+    oldDeadline: string | null,
+    newDeadline: string | null,
+    avatar?: string | null,
+    todoId?: string,
+    noteId?: string
   ) => void;
   showMeetingInviteToast: (
     inviterName: string,
@@ -133,6 +157,8 @@ function ToastItem({ toast, onDismiss, onAction }: { toast: Toast; onDismiss: ()
       case 'note_updated':
         return <FileText className="w-5 h-5 text-blue-500" />;
       case 'action_item_update':
+      case 'action_item_added':
+      case 'action_item_deadline_changed':
       case 'todo_assigned':
       case 'todo_completed':
         return <CheckSquare className="w-5 h-5 text-purple-500" />;
@@ -167,6 +193,8 @@ function ToastItem({ toast, onDismiss, onAction }: { toast: Toast; onDismiss: ()
       case 'note_updated':
         return 'border-l-blue-500';
       case 'action_item_update':
+      case 'action_item_added':
+      case 'action_item_deadline_changed':
       case 'todo_assigned':
       case 'todo_completed':
         return 'border-l-purple-500';
@@ -308,11 +336,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const handleNavigate = useCallback(
     (toast: Toast) => {
       if (toast.navigateTo) {
-        router.push(toast.navigateTo);
-        // Highlight element after navigation
+        // Add highlight parameter to URL if highlightId is provided
+        let url = toast.navigateTo;
         if (toast.highlightId) {
-          highlightElementAfterDelay(toast.highlightId, 500, toast.highlightType);
+          const separator = url.includes('?') ? '&' : '?';
+          url = `${url}${separator}highlight=${toast.highlightId}`;
         }
+        // Add highlight type if provided
+        if (toast.highlightType) {
+          url = `${url}&highlightType=${toast.highlightType}`;
+        }
+        // Add secondary highlight if provided
+        if (toast.secondaryHighlightId) {
+          url = `${url}&highlight2=${toast.secondaryHighlightId}`;
+        }
+        // Add calendar date if provided
+        if (toast.calendarDate) {
+          url = `${url}&calendarDate=${toast.calendarDate}`;
+        }
+        router.push(url);
       }
     },
     [router]
@@ -369,14 +411,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showActionItemUpdateToast = useCallback(
     (
       userName: string,
-      action: 'completed' | 'updated' | 'deleted',
+      action: 'completed' | 'uncompleted' | 'updated' | 'deleted',
       itemText: string,
       avatar?: string | null,
-      todoId?: string
+      todoId?: string,
+      deadline?: string | null,
+      noteId?: string
     ) => {
       const actionText =
-        action === 'completed' ? 'completed' : action === 'deleted' ? 'deleted' : 'updated';
+        action === 'completed' ? 'completed' : action === 'uncompleted' ? 'marked as incomplete' : action === 'deleted' ? 'deleted' : 'updated';
       const truncatedText = itemText.length > 30 ? itemText.substring(0, 30) + '...' : itemText;
+
+      // If there's a deadline, we can navigate to calendar as well
+      let calendarDate: string | undefined;
+      let secondaryHighlightId: string | undefined;
+
+      if (deadline && action !== 'deleted') {
+        const deadlineDate = new Date(deadline);
+        calendarDate = deadline;
+        secondaryHighlightId = `calendar-day-${deadlineDate.getDate()}`;
+      }
+
+      // Use noteId + todoId for unique element identification
+      const highlightId = (noteId && todoId) ? `todo-${noteId}-${todoId}` : (todoId ? `todo-${todoId}` : undefined);
+
       showToast({
         type: 'action_item_update',
         title: userName,
@@ -384,8 +442,107 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         avatar,
         duration: 5000,
         navigateTo: '/todos',
-        highlightId: todoId ? `todo-${todoId}` : undefined,
+        highlightId,
         highlightType: 'todo',
+        calendarDate,
+        secondaryHighlightId,
+      });
+    },
+    [showToast]
+  );
+
+  const showActionItemAddedToast = useCallback(
+    (
+      userName: string,
+      itemText: string,
+      avatar?: string | null,
+      todoId?: string,
+      deadline?: string | null,
+      noteId?: string
+    ) => {
+      const truncatedText = itemText.length > 30 ? itemText.substring(0, 30) + '...' : itemText;
+
+      // Build navigation with calendar if deadline is provided
+      let navigateTo = '/todos';
+      let calendarDate: string | undefined;
+      let secondaryHighlightId: string | undefined;
+      let message = `added new task: "${truncatedText}"`;
+
+      if (deadline) {
+        const deadlineDate = new Date(deadline);
+        const formattedDate = deadlineDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        message = `added new task: "${truncatedText}" (due ${formattedDate})`;
+        calendarDate = deadline;
+        secondaryHighlightId = `calendar-day-${deadlineDate.getDate()}`;
+      }
+
+      // Use noteId + todoId for unique element identification
+      const highlightId = (noteId && todoId) ? `todo-${noteId}-${todoId}` : (todoId ? `todo-${todoId}` : undefined);
+
+      showToast({
+        type: 'action_item_added',
+        title: userName,
+        message,
+        avatar,
+        duration: 6000,
+        navigateTo,
+        highlightId,
+        highlightType: 'todo-added', // Use green highlight for new items
+        calendarDate,
+        secondaryHighlightId,
+      });
+    },
+    [showToast]
+  );
+
+  const showActionItemDeadlineChangedToast = useCallback(
+    (
+      userName: string,
+      itemText: string,
+      oldDeadline: string | null,
+      newDeadline: string | null,
+      avatar?: string | null,
+      todoId?: string,
+      noteId?: string
+    ) => {
+      const truncatedText = itemText.length > 25 ? itemText.substring(0, 25) + '...' : itemText;
+
+      let message: string;
+      let calendarDate: string | undefined;
+      let secondaryHighlightId: string | undefined;
+
+      if (newDeadline) {
+        const newDate = new Date(newDeadline);
+        const formattedNew = newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        if (oldDeadline) {
+          const oldDate = new Date(oldDeadline);
+          const formattedOld = oldDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          message = `changed deadline for "${truncatedText}" from ${formattedOld} to ${formattedNew}`;
+        } else {
+          message = `set deadline for "${truncatedText}" to ${formattedNew}`;
+        }
+
+        calendarDate = newDeadline;
+        secondaryHighlightId = `calendar-day-${newDate.getDate()}`;
+      } else {
+        message = `removed deadline from "${truncatedText}"`;
+      }
+
+      // Use noteId + todoId for unique element identification
+      const highlightId = (noteId && todoId) ? `todo-${noteId}-${todoId}` : (todoId ? `todo-${todoId}` : undefined);
+
+      showToast({
+        type: 'action_item_deadline_changed',
+        title: userName,
+        message,
+        avatar,
+        duration: 6000,
+        navigateTo: '/todos',
+        highlightId,
+        highlightType: 'todo-deadline', // Use orange highlight for deadline changes
+        calendarDate,
+        secondaryHighlightId,
       });
     },
     [showToast]
@@ -548,6 +705,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         showFriendAcceptedToast,
         showCollaboratorAddedToast,
         showActionItemUpdateToast,
+        showActionItemAddedToast,
+        showActionItemDeadlineChangedToast,
         showMeetingInviteToast,
         showMeetingStartedToast,
         showMeetingEndedToast,

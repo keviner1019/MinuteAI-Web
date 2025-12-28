@@ -1,13 +1,14 @@
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 
-export type HighlightType = 'todo' | 'friend' | 'note' | 'meeting' | 'calendar';
+export type HighlightType = 'todo' | 'friend' | 'note' | 'meeting' | 'calendar' | 'todo-added' | 'todo-deadline';
 
 /**
  * Highlight an element by ID with a blinking animation
  * @param elementId - The ID of the element to highlight
  * @param highlightClass - Optional custom highlight class (defaults to 'highlight-item')
+ * @returns true if element was found and highlighted, false otherwise
  */
-export function highlightElement(elementId: string, highlightClass?: string) {
+export function highlightElement(elementId: string, highlightClass?: string): boolean {
   const element = document.getElementById(elementId);
   if (element) {
     // Scroll to element
@@ -22,8 +23,49 @@ export function highlightElement(elementId: string, highlightClass?: string) {
     // Remove highlight after animation completes
     setTimeout(() => {
       element.classList.remove(className);
-    }, 3000);
+    }, 3200);
+
+    return true;
   }
+  return false;
+}
+
+/**
+ * Highlight an element with retry - keeps trying until element is found or timeout
+ * @param elementId - The ID of the element to highlight
+ * @param type - The type of element for styling
+ * @param maxAttempts - Maximum number of retry attempts (default 20 = 2 seconds)
+ * @param intervalMs - Interval between retries in ms (default 100)
+ * @returns Promise that resolves to true if element was found, false if timed out
+ */
+export function highlightElementWithRetry(
+  elementId: string,
+  type?: HighlightType,
+  maxAttempts: number = 20,
+  intervalMs: number = 100
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let attempts = 0;
+
+    const tryHighlight = () => {
+      attempts++;
+      const highlightClass = type ? getHighlightClass(type) : undefined;
+
+      if (highlightElement(elementId, highlightClass)) {
+        resolve(true);
+        return;
+      }
+
+      if (attempts < maxAttempts) {
+        setTimeout(tryHighlight, intervalMs);
+      } else {
+        console.warn(`[highlight] Element ${elementId} not found after ${maxAttempts} attempts`);
+        resolve(false);
+      }
+    };
+
+    tryHighlight();
+  });
 }
 
 /**
@@ -48,6 +90,10 @@ export function getHighlightClass(type: HighlightType): string {
   switch (type) {
     case 'todo':
       return 'todo-highlight';
+    case 'todo-added':
+      return 'todo-added-highlight';
+    case 'todo-deadline':
+      return 'todo-deadline-highlight';
     case 'friend':
       return 'friend-card-highlight';
     case 'note':

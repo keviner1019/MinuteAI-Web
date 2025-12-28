@@ -87,14 +87,14 @@ export function useCalendarEvents(
         .select('meeting_id, meetings(id, room_id, title, created_at, scheduled_at, status, host_id)')
         .eq('user_id', userId);
 
-      // Fetch meetings where user is invited (via email)
+      // Fetch meetings where user is invited (via email) - include both pending and accepted
       let invitedMeetings: any[] = [];
       if (userEmail) {
         const { data: invitations } = await supabase
           .from('meeting_invitations')
           .select('meeting_id, meetings(id, room_id, title, created_at, scheduled_at, status, host_id)')
           .eq('invitee_email', userEmail.toLowerCase())
-          .eq('status', 'pending');
+          .in('status', ['pending', 'accepted']);
 
         if (invitations) {
           invitedMeetings = invitations
@@ -268,15 +268,19 @@ export function useCalendarEvents(
           return item;
         });
 
+        // Get current session for auth
+        const { data: { session } } = await supabase.auth.getSession();
+
         // Update via API to trigger real-time notifications
         const response = await fetch(`/api/notes/${noteId}/action-items`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
             actionItems,
-            changeType: 'completed',
+            changeType: itemToToggle.completed ? 'uncompleted' : 'completed',
             changedItem: toggledItem,
           }),
         });

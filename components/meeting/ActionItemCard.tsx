@@ -75,6 +75,7 @@ export default function ActionItemCard({
 
   return (
     <div
+      id={`todo-${item.id}`}
       className={`
         group p-4 rounded-lg border transition-all
         ${item.completed ? 'bg-gray-50 opacity-75' : 'bg-white'}

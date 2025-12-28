@@ -158,17 +158,58 @@ export async function POST(request: NextRequest) {
           });
 
           if (friendsMap.size > 0) {
+            // For scheduled meetings, auto-accept invitations so they appear on calendar immediately
+            // For instant meetings, keep as pending so user must explicitly accept
+            const invitationStatus = scheduled_at ? 'accepted' : 'pending';
+
             // Create invitations with proper email addresses
             const invitations = Array.from(friendsMap.entries()).map(([friendId, email]) => ({
               meeting_id: meeting.id,
               inviter_id: user.id,
               invitee_email: email.toLowerCase(),
               token: generateMeetingCode() + generateMeetingCode(),
-              status: 'pending',
+              status: invitationStatus,
               expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
             }));
 
             await supabaseAdmin.from('meeting_invitations').insert(invitations);
+
+            // For scheduled meetings, also add invitees as participants
+            if (scheduled_at) {
+              for (const [friendId, email] of friendsMap.entries()) {
+                try {
+                  // Get friend's profile
+                  const { data: friendProfile } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('display_name, avatar_url')
+                    .eq('id', friendId)
+                    .single();
+
+                  const friendProfileData = friendProfile as { display_name: string | null; avatar_url: string | null } | null;
+
+                  await supabaseAdmin.from('meeting_participants').upsert({
+                    meeting_id: meeting.id,
+                    user_id: friendId,
+                    session_id: `participant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                    display_name: friendProfileData?.display_name || email.split('@')[0],
+                    avatar_url: friendProfileData?.avatar_url || null,
+                    role: 'participant',
+                    is_active: false,
+                    permissions: {
+                      can_speak: true,
+                      can_share_screen: true,
+                      can_record: false,
+                      can_invite: false,
+                      can_kick: false,
+                    },
+                  }, {
+                    onConflict: 'meeting_id,user_id',
+                  });
+                } catch (participantError) {
+                  console.error(`Failed to add participant ${friendId}:`, participantError);
+                }
+              }
+            }
 
             // Send real-time Pusher notifications to each friend
             const hostName = hostProfile?.display_name || user.email?.split('@')[0] || 'Someone';
@@ -306,13 +347,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch meetings where user is invited (by email)
+    // Fetch meetings where user is invited (by email) - include both pending and accepted
     if (includeInvited && user.email) {
       const { data: invitations } = await supabaseAdmin
         .from('meeting_invitations')
         .select('meeting_id')
         .eq('invitee_email', user.email.toLowerCase())
-        .eq('status', 'pending');
+        .in('status', ['pending', 'accepted']);
 
       if (invitations && invitations.length > 0) {
         const existingIds = new Set(allMeetings.map(m => m.id));

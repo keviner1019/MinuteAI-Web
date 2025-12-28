@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHighlight } from '@/hooks/useHighlight';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
 import {
@@ -26,10 +27,11 @@ import ShareNoteModal from '@/components/notes/ShareNoteModal';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-export default function NotePage() {
+function NotePageContent() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  useHighlight(); // Handle URL-based highlighting for action items
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,6 +82,7 @@ export default function NotePage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
           actionItems: items,
@@ -357,5 +360,14 @@ export default function NotePage() {
         )}
       </div>
     </ProtectedRoute>
+  );
+}
+
+// Wrap with Suspense for useSearchParams in useHighlight hook
+export default function NotePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-gray-600">Loading...</div></div>}>
+      <NotePageContent />
+    </Suspense>
   );
 }

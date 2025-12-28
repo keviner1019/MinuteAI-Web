@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Pusher, { Channel } from 'pusher-js';
 import MeetingCountdownModal from '@/components/meeting/MeetingCountdownModal';
+import { useToast } from '@/contexts/ToastContext';
 
 // Types
 interface MeetingInvitation {
@@ -86,6 +87,27 @@ function getPusherInstance(): Pusher {
     pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
       authEndpoint: '/api/pusher/auth',
+      // Include cookies in auth requests for session-based auth
+      auth: {
+        headers: {},
+      },
+    });
+
+    // Add connection state logging
+    pusherInstance.connection.bind('connected', () => {
+      console.log('[Pusher] Connected to Pusher');
+    });
+
+    pusherInstance.connection.bind('disconnected', () => {
+      console.log('[Pusher] Disconnected from Pusher');
+    });
+
+    pusherInstance.connection.bind('error', (err: any) => {
+      console.error('[Pusher] Connection error:', err);
+    });
+
+    pusherInstance.connection.bind('state_change', (states: { previous: string; current: string }) => {
+      console.log('[Pusher] Connection state changed:', states.previous, '->', states.current);
     });
   }
   return pusherInstance;
@@ -98,6 +120,7 @@ const REMINDER_INTERVALS = [5];
 export function MeetingNotificationProvider({ children }: { children: ReactNode }) {
   // Get current pathname to check if user is in a meeting
   const pathname = usePathname();
+  const { showMeetingInviteToast } = useToast();
 
   // State for invitations
   const [pendingInvitations, setPendingInvitations] = useState<MeetingInvitation[]>([]);
@@ -226,6 +249,7 @@ export function MeetingNotificationProvider({ children }: { children: ReactNode 
     roomId: string;
     meetingTitle: string;
     scheduledAt?: string | null;
+    isInstant?: boolean;
     invitedBy: {
       id: string;
       displayName: string;
@@ -233,15 +257,25 @@ export function MeetingNotificationProvider({ children }: { children: ReactNode 
     };
     timestamp: string;
   }) => {
+    console.log('[MeetingNotification] handleMeetingInvite called with:', payload);
+    console.log('[MeetingNotification] Current user ID:', userIdRef.current);
+
     // Skip if from current user
-    if (payload.invitedBy.id === userIdRef.current) return;
+    if (payload.invitedBy.id === userIdRef.current) {
+      console.log('[MeetingNotification] Skipping - invitation from self');
+      return;
+    }
 
     // Create unique event key
     const eventKey = `invite-${payload.meetingId}-${payload.timestamp}`;
-    if (processedEventsRef.current.has(eventKey)) return;
+    if (processedEventsRef.current.has(eventKey)) {
+      console.log('[MeetingNotification] Skipping - already processed event:', eventKey);
+      return;
+    }
     processedEventsRef.current.add(eventKey);
 
-    const isInstant = !payload.scheduledAt;
+    // Use isInstant from payload if available, otherwise check scheduledAt
+    const isInstant = payload.isInstant ?? !payload.scheduledAt;
 
     const invitation: MeetingInvitation = {
       id: eventKey,
@@ -254,14 +288,30 @@ export function MeetingNotificationProvider({ children }: { children: ReactNode 
       timestamp: payload.timestamp,
     };
 
+    console.log('[MeetingNotification] Created invitation object:', invitation);
+
     // For instant meetings, show modal immediately
     if (isInstant) {
+      console.log('[MeetingNotification] Instant meeting - showing modal immediately');
       setCurrentInvitation(invitation);
+    } else {
+      // For scheduled meetings, show a toast that allows navigation to calendar
+      console.log('[MeetingNotification] Scheduled meeting - showing toast notification');
+      showMeetingInviteToast(
+        payload.invitedBy.displayName,
+        payload.meetingTitle,
+        payload.roomId,
+        payload.invitedBy.avatarUrl,
+        payload.scheduledAt
+      );
     }
 
     // Add to pending list
-    setPendingInvitations((prev) => [...prev, invitation]);
-  }, []);
+    setPendingInvitations((prev) => {
+      console.log('[MeetingNotification] Adding to pending invitations. Current count:', prev.length);
+      return [...prev, invitation];
+    });
+  }, [showMeetingInviteToast]);
 
   // Check for upcoming meetings and show countdown
   const checkUpcomingMeetings = useCallback(async () => {
@@ -477,17 +527,35 @@ export function MeetingNotificationProvider({ children }: { children: ReactNode 
 
     const setup = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        console.log('[MeetingNotification] No session, skipping Pusher setup');
+        return;
+      }
 
       userIdRef.current = session.user.id;
       userEmailRef.current = session.user.email || null;
 
       // Subscribe to personal notification channel
       const channelName = `private-user-${session.user.id}`;
+      console.log('[MeetingNotification] Subscribing to channel:', channelName);
+
       channelRef.current = pusher.subscribe(channelName);
 
+      // Handle subscription success
+      channelRef.current.bind('pusher:subscription_succeeded', () => {
+        console.log('[MeetingNotification] Successfully subscribed to:', channelName);
+      });
+
+      // Handle subscription error
+      channelRef.current.bind('pusher:subscription_error', (error: any) => {
+        console.error('[MeetingNotification] Subscription error for channel:', channelName, error);
+      });
+
       // Listen for meeting invitations
-      channelRef.current.bind('meeting-invite', handleMeetingInvite);
+      channelRef.current.bind('meeting-invite', (data: any) => {
+        console.log('[MeetingNotification] Received meeting-invite event:', data);
+        handleMeetingInvite(data);
+      });
 
       // Initial checks
       checkUpcomingMeetings();
@@ -513,6 +581,7 @@ export function MeetingNotificationProvider({ children }: { children: ReactNode 
 
     return () => {
       if (channelRef.current) {
+        console.log('[MeetingNotification] Unsubscribing from channel:', channelRef.current.name);
         channelRef.current.unbind_all();
         pusher.unsubscribe(channelRef.current.name);
       }

@@ -1,7 +1,6 @@
 import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
 
-export type AppSupabaseClient = SupabaseClient<Database, 'public'>;
+export type AppSupabaseClient = SupabaseClient;
 
 // Singleton instance to avoid multiple client creation
 let supabaseInstance: AppSupabaseClient | null = null;
@@ -15,7 +14,7 @@ export function createClient(): AppSupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const client: AppSupabaseClient = createSupabaseClient<Database, 'public'>(
+  const client: AppSupabaseClient = createSupabaseClient(
     supabaseUrl,
     supabaseAnonKey,
     {

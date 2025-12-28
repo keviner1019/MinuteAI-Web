@@ -26,6 +26,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       notes: {
         Row: {
@@ -79,6 +80,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       meeting_audio: {
         Row: {
@@ -117,6 +119,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string | null;
         };
+        Relationships: [];
       };
       meetings: {
         Row: {
@@ -158,6 +161,7 @@ export interface Database {
           updated_at?: string;
           meeting_code?: string | null;
         };
+        Relationships: [];
       };
       meeting_participants: {
         Row: {
@@ -190,7 +194,53 @@ export interface Database {
           left_at?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
+      meeting_summaries: {
+        Row: {
+          id: string;
+          meeting_id: string;
+          summary: string;
+          key_points: string[] | null;
+          action_items: string[] | null;
+          sentiment: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_id: string;
+          summary: string;
+          key_points?: string[] | null;
+          action_items?: string[] | null;
+          sentiment?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          meeting_id?: string;
+          summary?: string;
+          key_points?: string[] | null;
+          action_items?: string[] | null;
+          sentiment?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }
