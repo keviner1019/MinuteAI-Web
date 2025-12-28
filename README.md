@@ -2,63 +2,135 @@
 
 A comprehensive web application for real-time video meetings, audio transcription, and AI-powered analysis. Upload audio files or conduct live meetings with automatic transcription, action item extraction, and intelligent summaries.
 
-## ✨ Key Features
+---
 
-### 🎥 Live Meetings
+## The Problem
 
-- **WebRTC Peer-to-Peer Video Calls** - Direct audio/video connections
+**Meetings are essential but inefficient.** Teams spend countless hours in meetings, yet:
+- **70% of meeting content is forgotten** within 24 hours
+- **Action items get lost** or unclear ownership
+- **No searchable record** of what was discussed
+- **Manual note-taking** distracts from active participation
+- **Distributed teams** struggle with async communication
+
+Traditional solutions either require expensive enterprise software or manual transcription services that take hours to deliver.
+
+---
+
+## The Challenges
+
+Building a real-time meeting platform with AI analysis presents several technical hurdles:
+
+| Challenge | Complexity |
+|-----------|------------|
+| **WebRTC Peer-to-Peer** | NAT traversal, ICE candidates, TURN/STUN servers, connection state management |
+| **Real-time Transcription** | Low-latency speech-to-text, speaker diarization, streaming WebSocket connections |
+| **Multi-participant Mesh** | N×(N-1)/2 peer connections, state synchronization, race conditions |
+| **Composite Recording** | Mixing multiple audio/video streams, canvas composition, Web Audio API |
+| **AI Analysis** | Extracting structured data (action items, key topics) from unstructured speech |
+| **Security** | Row-level security, authenticated storage, temporary tokens |
+
+---
+
+## The Solution
+
+MinuteAI provides an all-in-one platform that:
+
+1. **Automates transcription** - Real-time speech-to-text with speaker identification
+2. **Extracts insights** - AI-powered summaries, action items, and key topics
+3. **Records everything** - Composite audio/video recording with playback
+4. **Enables collaboration** - Share notes, assign action items, track progress
+5. **Works anywhere** - Browser-based, no downloads required
+
+---
+
+## Key Features
+
+### Live Meetings
+- **WebRTC Peer-to-Peer Video Calls** - Direct audio/video connections with low latency
+- **Multi-participant Support** - Mesh network topology for group meetings
 - **Real-time Transcription** - Live speech-to-text during meetings
 - **Video Toggle** - Enable/disable camera for face capture (640x480)
-- **Composite Recording** - Records both audio and video streams
-- **Recording Notifications** - Both participants see recording status
-- **Participant Management** - Real-time join/leave notifications
+- **Composite Recording** - Records both local and remote audio/video streams
+- **Recording Notifications** - All participants see recording status in real-time
+- **Meeting Codes** - Easy 6-character codes for joining (e.g., "ABC123")
+- **Meeting Summaries** - AI-generated summaries saved to meeting records
 
-### 📝 Transcription & Analysis
-
+### Transcription & Analysis
 - **Interactive Transcript Viewer** - Click timestamps to jump in audio
 - **Full-Text Search** - Find and highlight specific words/phrases
+- **Bilingual Export** - Export transcripts in original and translated languages
 - **Export Options** - TXT, PDF, DOCX, SRT subtitle formats
-- **AI Summarization** - Automatic meeting summaries
-- **Action Items** - Smart extraction with priority levels
+- **AI Summarization** - Automatic meeting summaries with key points
+- **Action Items** - Smart extraction with priority levels and deadlines
 - **Key Topics** - Automatic topic identification
+- **Sentiment Analysis** - Meeting tone detection (positive/neutral/negative)
 
-### ✅ Smart Action Items
-
+### Smart Action Items
 - **Priority Levels** - High, Medium, Low with color coding
 - **Deadline Management** - Set due dates with overdue tracking
 - **Progress Tracking** - Visual progress bars and statistics
 - **Inline Editing** - Edit items without page reload
+- **Real-time Notifications** - Toast alerts for action item changes
+- **Change Tracking** - Track modifications and updates
 - **Filter Views** - All, Pending, Completed status filters
 
-### 📄 Document Processing
+### Document Processing
+- **Multiple Formats** - Audio (MP3, WAV, M4A), PDF, Word, PowerPoint support
+- **Markdown Analysis** - Structured document analysis with sections
+- **Batch Processing** - Multiple file uploads with progress tracking
+- **Translation** - Multi-language support with DeepL integration
+- **Translation Cache** - Cached translations for faster access
 
-- **Multiple Formats** - Audio, PDF, Word, PowerPoint support
-- **Markdown Analysis** - Structured document analysis
-- **Batch Processing** - Multiple file uploads
-- **Translation Cache** - Multi-language support
+### Social Features
+- **Friends System** - Send/accept friend requests
+- **Presence Tracking** - Online/offline/away status with heartbeat
+- **Note Sharing** - Share notes with collaborators (viewer/editor roles)
+- **User Profiles** - Customizable display names and avatars
+
+### Calendar Integration
+- **Calendar Events** - Manage scheduled meetings
+- **Meeting Reminders** - 15min, 1hour, 1day reminder support
+- **Scheduling** - Set meeting start and end times
+
+---
 
 ## Tech Stack
 
 ### Frontend & Framework
-
-- **Next.js 14** (App Router)
-- **React 18** with TypeScript
-- **Tailwind CSS** for styling
-- **WebRTC** for peer-to-peer connections
+| Technology | Purpose |
+|------------|---------|
+| **Next.js 14** | App Router with Server Components |
+| **React 18** | UI with TypeScript |
+| **Tailwind CSS** | Utility-first styling |
+| **Zustand** | State management |
 
 ### Backend & Services
+| Service | Purpose |
+|---------|---------|
+| **Supabase** | Auth, PostgreSQL, Storage, Real-time subscriptions |
+| **AssemblyAI** | Speech-to-text, real-time transcription, speaker diarization |
+| **Google Gemini** | AI analysis, summarization, action item extraction |
+| **Pusher** | WebRTC signaling, real-time events |
+| **DeepL** | Translation API (optional) |
 
-- **Supabase** (Authentication, PostgreSQL, Storage, Real-time)
-- **AssemblyAI** (Speech-to-Text, Real-time Transcription)
-- **Google Gemini** (AI Analysis, Summarization)
-- **Pusher** (Real-time signaling for WebRTC)
+### Real-time Communication
+| Technology | Purpose |
+|------------|---------|
+| **WebRTC** | Peer-to-peer audio/video |
+| **simple-peer** | WebRTC wrapper library |
+| **Web Audio API** | Audio stream mixing |
+| **Canvas API** | Video composition |
+| **MediaRecorder** | Recording streams |
 
 ### Key Libraries
-
-- **simple-peer** - WebRTC wrapper
-- **jspdf** & **docx** - Document export
-- **react-dropzone** - File uploads
-- **lucide-react** - Icons
+| Library | Purpose |
+|---------|---------|
+| **jspdf** | PDF export |
+| **docx** | Word document export |
+| **react-dropzone** | File upload UI |
+| **lucide-react** | Icon library |
+| **date-fns** | Date formatting |
 
 ## Project Structure
 
@@ -201,77 +273,77 @@ See `env.template` for all required environment variables:
 
 1. Create a new Supabase project at [Supabase Dashboard](https://supabase.com/dashboard)
 2. Run the base schema: `supabase/schema.sql` in SQL Editor
-3. Run migrations from `supabase/migrations/` folder in order:
-   - `20251110_add_enhanced_features.sql` - Action items & transcript segments
-   - `20251114_storage_policies_simplified.sql` - Recording storage setup
+3. Run migrations from `supabase/migrations/` folder in chronological order
 4. Copy Project URL and Anon Key from Project Settings → API
+
+See `DATABASE_SCHEMA.md` for complete schema documentation (14 tables, RLS policies, functions).
 
 ### Storage Buckets
 
-Create these storage buckets in Supabase Storage:
-
-1. **audio-files** - For uploaded audio/documents (Public)
-2. **meeting-audio** - For meeting recordings (Public)
-3. **avatars** - For user profile pictures (Public)
+| Bucket | Access | Purpose |
+|--------|--------|---------|
+| `audio-files` | Public | Uploaded audio/documents |
+| `meeting-audio` | Public | Meeting recordings |
+| `meeting-recordings` | Private | Video recordings (500MB limit) |
+| `avatars` | Public | User profile pictures |
 
 ### Authentication
 
 1. Enable Email/Password authentication
-2. Disable email confirmation for development
-3. Optional: Enable Google OAuth for social login
+2. Optional: Enable Google OAuth for social login
+3. Disable email confirmation for development (recommended)
 
 ### Row Level Security (RLS)
 
-The schema includes RLS policies for:
-
-- User can only access their own data
-- Meeting participants can access shared meeting data
-- Secure storage access with authentication
-
-See `STORAGE_SETUP_MANUAL.md` for detailed storage configuration.
+All tables use RLS policies:
+- Users access their own data only
+- Meeting participants share meeting data
+- Collaborators access shared notes
+- Friends see each other's presence
 
 ## Features Status
 
 ### ✅ Implemented & Production Ready
 
 #### Authentication & User Management
-
 - ✅ Email/Password authentication
+- ✅ Google OAuth social login
 - ✅ User profiles with avatars
-- ✅ Protected routes
+- ✅ Protected routes with middleware
 - ✅ Session management
+- ✅ Revamped signup with branding and benefits
 
 #### Live Meetings
-
 - ✅ WebRTC peer-to-peer video calls
+- ✅ Multi-participant mesh network (2+ users)
 - ✅ Audio/Video toggle controls
 - ✅ Real-time transcription during calls
 - ✅ Composite audio + video recording
 - ✅ Recording notifications (visible to all participants)
 - ✅ Participant join/leave notifications
-- ✅ Meeting room management
+- ✅ Meeting room management with codes
+- ✅ Meeting summary saving
+- ✅ Meeting reactivation for recently ended meetings
 
 #### Transcription & Documents
-
 - ✅ Audio file upload with drag-and-drop
 - ✅ Speech-to-text with AssemblyAI
 - ✅ Interactive transcript viewer with timestamps
 - ✅ Click-to-seek audio synchronization
 - ✅ Full-text search with highlighting
 - ✅ Export to TXT, PDF, DOCX, SRT formats
+- ✅ Bilingual export support
 - ✅ Multi-format document upload (PDF, DOCX, PPTX)
 - ✅ Markdown document analysis
 
 #### AI Analysis
-
 - ✅ AI-powered meeting summaries
 - ✅ Automatic action item extraction
 - ✅ Key topic identification
 - ✅ Sentiment analysis
-- ✅ Real-time translation support
+- ✅ Real-time translation support with caching
 
 #### Action Items Management
-
 - ✅ Priority levels (High/Medium/Low)
 - ✅ Deadline tracking with overdue alerts
 - ✅ Mark complete/incomplete
@@ -279,28 +351,36 @@ See `STORAGE_SETUP_MANUAL.md` for detailed storage configuration.
 - ✅ Filter by status (All/Pending/Completed)
 - ✅ Progress tracking & statistics
 - ✅ Overdue item highlighting
+- ✅ Real-time notifications with toast alerts
+- ✅ Change tracking for modifications
+
+#### Social & Collaboration
+- ✅ Friends system (send/accept requests)
+- ✅ Friend notifications
+- ✅ User presence (online/offline/away)
+- ✅ Heartbeat-based presence tracking
+- ✅ Note sharing with collaborators
+- ✅ Viewer/Editor role permissions
 
 #### User Experience
-
 - ✅ Responsive mobile-first design
 - ✅ Dark mode support
-- ✅ Real-time updates
-- ✅ Optimistic UI
-- ✅ Loading states
-- ✅ Error handling
+- ✅ Real-time updates via Supabase Realtime
+- ✅ Optimistic UI updates
+- ✅ Loading states and skeletons
+- ✅ Error handling with toast notifications
+- ✅ Custom Logo component with branding
 
 ### 🚧 Future Enhancements
-
 - [ ] Screen sharing during meetings
-- [ ] Meeting recording with video (currently audio only)
-- [ ] Multiple participants (3+ people)
-- [ ] Calendar integration
-- [ ] Email notifications
+- [ ] 10+ participant support (SFU architecture)
+- [ ] Email notifications for reminders
 - [ ] Speaker diarization improvements
-- [ ] Custom AI models
+- [ ] Custom AI model selection
 - [ ] Export to calendar (ICS)
 - [ ] Keyboard shortcuts
 - [ ] Meeting templates
+- [ ] Mobile app (Expo React Native)
 
 ## Development Commands
 
@@ -360,49 +440,86 @@ npm run test:config # Test API configurations (scripts/test-apis.js)
 3. **View transcript** - Click on note to see results
 4. **Search & Export** - Use search and export buttons
 
-## Architecture & Technical Details
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Client (Browser)                         │
+├─────────────┬─────────────┬─────────────┬─────────────┬─────────┤
+│   React UI  │   WebRTC    │  Recorder   │ Transcribe  │  State  │
+│  Components │   Hooks     │   Hooks     │   Hooks     │  Zustand│
+└──────┬──────┴──────┬──────┴──────┬──────┴──────┬──────┴────┬────┘
+       │             │             │             │           │
+       ▼             ▼             ▼             ▼           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Next.js API Routes                           │
+├─────────────┬─────────────┬─────────────┬─────────────┬─────────┤
+│  /meetings  │ /transcribe │  /analyze   │ /translate  │ /pusher │
+└──────┬──────┴──────┬──────┴──────┬──────┴──────┬──────┴────┬────┘
+       │             │             │             │           │
+       ▼             ▼             ▼             ▼           ▼
+┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌─────────┐
+│  Supabase │ │ AssemblyAI│ │  Gemini   │ │   DeepL   │ │ Pusher  │
+│  (DB/Auth)│ │  (S2T)    │ │   (AI)    │ │  (Trans)  │ │(Signal) │
+└───────────┘ └───────────┘ └───────────┘ └───────────┘ └─────────┘
+```
 
 ### WebRTC Implementation
 
+```
+User A                    Pusher                    User B
+  │                         │                         │
+  │──── sendOffer ─────────►│                         │
+  │                         │──── receiveOffer ──────►│
+  │                         │                         │
+  │                         │◄──── sendAnswer ────────│
+  │◄─── receiveAnswer ──────│                         │
+  │                         │                         │
+  │◄───── ICE Candidates exchanged ─────────────────►│
+  │                         │                         │
+  │◄═══════════ Direct P2P Connection ═════════════►│
+```
+
 - **Peer Connection**: Direct browser-to-browser using simple-peer
-- **Signaling**: Pusher for WebRTC offer/answer/ICE candidate exchange
-- **Audio/Video Streams**: Separate tracks for flexibility
-- **Data Channel**: Used for mute state, recording state sync
-- **Perfect Negotiation**: Handles connection establishment gracefully
+- **Signaling**: Pusher channels for offer/answer/ICE candidate exchange
+- **Mesh Network**: Each participant connects to all others (N×(N-1)/2 connections)
+- **ICE Candidate Buffering**: Handles candidates arriving before peer connection ready
+- **Data Channel**: Syncs mute state, recording state across participants
 
 ### Real-time Transcription
 
 - **AssemblyAI Streaming API**: WebSocket connection for live transcription
 - **Temporary tokens**: Browser-safe tokens with 10-minute expiry
 - **Speaker detection**: Identifies different speakers in real-time
-- **Auto-save**: Transcripts saved to database every few seconds
+- **Auto-save**: Transcripts saved to database periodically
 
 ### Recording System
 
-- **Composite Recording**: Combines local + remote audio/video
-- **Canvas API**: Used for video composition
-- **Web Audio API**: Mixes multiple audio streams
-- **Storage**: Uploads to Supabase Storage as WebM files
-- **Database**: Metadata stored in meeting_audio table
+- **Composite Recording**: Combines local + remote audio/video into single stream
+- **Canvas API**: Video composition with side-by-side layout
+- **Web Audio API**: Mixes multiple audio streams with AudioContext
+- **MediaRecorder**: Records composite stream as WebM (VP9 + Opus)
+- **Storage**: Uploads to Supabase Storage (500MB limit per recording)
 
 ### TypeScript Types
 
 Comprehensive types in `types/`:
-
-- `Database` - Supabase schema types
-- `ActionItem` - Action item with priority/deadline
-- `TranscriptSegment` - Timestamped transcript chunk
-- `Meeting` - Meeting metadata
-- `UserProfile` - User information
+- `Database` - Auto-generated Supabase schema types
+- `ActionItem` - Priority, deadline, completion status
+- `TranscriptSegment` - Timestamped text with speaker
+- `Meeting` - Room, participants, status, recording
+- `UserProfile` - Display name, avatar, presence
 
 ### Performance Optimizations
 
-- React.memo for transcript segments
-- Debounced search input
-- Optimistic UI updates
-- Lazy loading of components
-- Efficient WebRTC track management
-- Canvas animation using requestAnimationFrame
+| Technique | Purpose |
+|-----------|---------|
+| `React.memo` | Prevent re-renders of transcript segments |
+| Debounced search | Reduce search operations during typing |
+| Optimistic UI | Immediate feedback before server response |
+| Lazy loading | Load components on demand |
+| `requestAnimationFrame` | Smooth canvas video composition |
+| ICE candidate buffering | Reliable WebRTC connection establishment |
 
 ## Browser Compatibility
 
@@ -461,16 +578,10 @@ Ensure these are set in your deployment platform:
 
 ### Additional Guides
 
-- `DATABASE_SETUP.md` - Database schema documentation
-- `STORAGE_SETUP_MANUAL.md` - Storage bucket configuration
-- `TESTING_VIDEO_RECORDING.md` - Video features testing guide
-- `IMPLEMENTATION_COMPLETE.md` - Feature implementation details
-- `VERCEL_DEPLOYMENT_GUIDE.md` - Deployment instructions
-
-### API Documentation
-
-- `API_QUICK_REFERENCE.md` - API endpoints reference
-- `MOBILE_API_DOCUMENTATION.md` - Mobile API specifics
+| Document | Description |
+|----------|-------------|
+| `DATABASE_SCHEMA.md` | Complete database schema with RLS policies |
+| `CLAUDE.md` | AI assistant context and coding guidelines |
 
 ## Troubleshooting
 
@@ -535,24 +646,20 @@ We welcome contributions! Please:
 - Update documentation
 - Run linter before committing
 
+## Acknowledgments
+
+| Service | Contribution |
+|---------|--------------|
+| **AssemblyAI** | Speech-to-Text, real-time transcription |
+| **Google Gemini** | AI analysis, summarization |
+| **Supabase** | Database, auth, storage, real-time |
+| **Pusher** | WebRTC signaling |
+| **Vercel** | Hosting and deployment |
+
 ## License
 
 This project is licensed under the MIT License - see LICENSE file for details.
 
-## Acknowledgments
-
-- **AssemblyAI** - Speech-to-Text API
-- **Google Gemini** - AI Analysis
-- **Supabase** - Backend infrastructure
-- **Pusher** - Real-time signaling
-- **Vercel** - Hosting platform
-
-## Support & Contact
-
-- 📧 Email: support@minuteai.com
-- 🐛 Issues: [GitHub Issues](https://github.com/keviner1019/MinuteAI-Web/issues)
-- 📖 Docs: See documentation folder
-
 ---
 
-**Built with ❤️ for better meetings and productivity**
+**Built for better meetings and productivity**
